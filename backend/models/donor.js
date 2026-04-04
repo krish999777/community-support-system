@@ -1,0 +1,23 @@
+const mongoose = require('mongoose');
+
+const donationSchema = new mongoose.Schema({
+  amount: Number,
+  mode: String,
+  date: Date,
+  receiptNo: String,
+  purpose: String,
+  phone: String,
+  email: String,
+});
+
+const donorSchema = new mongoose.Schema({
+  fullName: String,
+  mobile: String,
+  email: String,
+  address: String,
+  pan: String,
+  aadhaar: String,
+  donations: [donationSchema]
+});
+
+module.exports = mongoose.model('donor', donorSchema);
