@@ -15,7 +15,7 @@ const fs = require('fs');
  */
 exports.addDonation = async (req, res) => {
   try {
-    const { fullName, email, phone, amount, mode, purpose, date } = req.body;
+    const { fullName, email, phone, amount, mode, purpose, date, transactionId, chequeNumber, accountNumber, ifsc } = req.body;
 
     if (!fullName || !email || !amount || !mode) {
       return res.status(400).json({ message: 'fullName, email, amount, and mode are required' });
@@ -40,6 +40,10 @@ exports.addDonation = async (req, res) => {
       purpose: purpose || '',
       phone: phone || donor.mobile || '',
       email: email || donor.email || '',
+      transactionId: transactionId || '',
+      chequeNumber: chequeNumber || '',
+      accountNumber: accountNumber || '',
+      ifsc: ifsc || ''
     };
 
     donor.donations.push(donationData);

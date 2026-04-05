@@ -44,8 +44,17 @@ exports.generateReceiptPDF = (donor, donation, filePath) => {
   const donationDetails = [
     ['Amount', `Rs. ${donation.amount}/-`],
     ['Payment Mode', donation.mode || '-'],
-    ['Purpose', donation.purpose || '-'],
   ];
+  
+  if (donation.mode === 'UPI' || donation.mode === 'NEFT') {
+    if (donation.transactionId) donationDetails.push(['Transaction ID', donation.transactionId]);
+  } else if (donation.mode === 'Cheque') {
+    if (donation.chequeNumber) donationDetails.push(['Cheque Number', donation.chequeNumber]);
+    if (donation.accountNumber) donationDetails.push(['Account Number', donation.accountNumber]);
+    if (donation.ifsc) donationDetails.push(['IFSC Code', donation.ifsc]);
+  }
+  
+  donationDetails.push(['Purpose', donation.purpose || '-']);
   donationDetails.forEach(([label, value]) => {
     doc.font('Helvetica-Bold').fontSize(11).text(`${label}: `, { continued: true }).font('Helvetica').text(value);
   });

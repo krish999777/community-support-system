@@ -9,6 +9,10 @@ const EMPTY_FORM = {
   date: new Date().toISOString().split('T')[0],
   purpose: '',
   mode: 'Cash',
+  transactionId: '',
+  chequeNumber: '',
+  accountNumber: '',
+  ifsc: '',
 };
 
 export default function DonationForm() {
@@ -60,6 +64,10 @@ export default function DonationForm() {
         mode:     form.mode,
         purpose:  form.purpose,
         date:     form.date,
+        transactionId: form.transactionId,
+        chequeNumber: form.chequeNumber,
+        accountNumber: form.accountNumber,
+        ifsc: form.ifsc,
       });
       setReceipt({ receiptNo: res.data.receiptNo });
     } catch (err) {
@@ -201,23 +209,74 @@ export default function DonationForm() {
             </div>
 
             {/* ── Payment Mode ── */}
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: (form.mode === 'UPI' || form.mode === 'NEFT' || form.mode === 'Cheque') ? '16px' : '24px' }}>
               <label className="form-label">Payment Mode *</label>
-              <div className="radio-group">
-                {['Cash', 'Online'].map(m => (
-                  <label key={m} className="radio-option">
-                    <input
-                      type="radio"
-                      name="mode"
-                      value={m}
-                      checked={form.mode === m}
-                      onChange={handleChange}
-                    />
-                    {m}
-                  </label>
-                ))}
-              </div>
+              <select
+                className="form-input"
+                name="mode"
+                value={form.mode}
+                onChange={handleChange}
+                required
+              >
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="NEFT">NEFT</option>
+                <option value="Cheque">Cheque</option>
+              </select>
             </div>
+
+            {/* ── Conditional Payment Fields ── */}
+            {(form.mode === 'UPI' || form.mode === 'NEFT') && (
+              <div className="form-group fade-in">
+                <label className="form-label">Transaction ID *</label>
+                <input
+                  className="form-input"
+                  name="transactionId"
+                  value={form.transactionId}
+                  onChange={handleChange}
+                  placeholder="Enter UPI / NEFT Transaction ID"
+                  required
+                />
+              </div>
+            )}
+
+            {form.mode === 'Cheque' && (
+              <div className="form-row fade-in">
+                <div className="form-group">
+                  <label className="form-label">Cheque Number *</label>
+                  <input
+                    className="form-input"
+                    name="chequeNumber"
+                    value={form.chequeNumber}
+                    onChange={handleChange}
+                    placeholder="e.g. 123456"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Number *</label>
+                  <input
+                    className="form-input"
+                    name="accountNumber"
+                    value={form.accountNumber}
+                    onChange={handleChange}
+                    placeholder="Bank Account Number"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">IFSC Code *</label>
+                  <input
+                    className="form-input"
+                    name="ifsc"
+                    value={form.ifsc}
+                    onChange={handleChange}
+                    placeholder="e.g. HDFC0001234"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             {error && <div className="error-box">{error}</div>}
 

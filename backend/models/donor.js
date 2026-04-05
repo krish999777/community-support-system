@@ -8,6 +8,10 @@ const donationSchema = new mongoose.Schema({
   purpose: String,
   phone: String,
   email: String,
+  transactionId: String,
+  chequeNumber: String,
+  accountNumber: String,
+  ifsc: String,
 });
 
 const donorSchema = new mongoose.Schema({
