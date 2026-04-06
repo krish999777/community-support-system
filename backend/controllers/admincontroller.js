@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 
 const ADMINS = [
-  { username: 'admin1', password: 'pass123' },
-  { username: 'admin2', password: 'pass321' },
-  { username: 'admin3', password: 'pass132' },
+  { username: 'admin1', password: 'admin1_pass_13579' },
+  { username: 'admin2', password: 'admin2_pass_98765' },
+  { username: 'admin3', password: 'admin3_pass_43210' },
 ];
 
 exports.registerAdmin = async (req, res) => {
