@@ -1,9 +1,13 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
-exports.generateReceiptPDF = (donor, donation, filePath) => {
-  const doc = new PDFDocument({ margin: 50 });
-  doc.pipe(fs.createWriteStream(filePath));
+exports.generateReceiptPDF = (donor, donation) => {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50 });
+    const buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
 
   // Header
   doc.fontSize(22).font('Helvetica-Bold').text('Babariyawad Social Community', { align: 'center' });
@@ -66,4 +70,5 @@ exports.generateReceiptPDF = (donor, donation, filePath) => {
   doc.fontSize(10).text('Thank you for your generous donation.', { align: 'center' });
 
   doc.end();
+  });
 };

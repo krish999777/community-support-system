@@ -1,8 +1,6 @@
 const Donor = require('../models/donor');
 const { generateReceiptPDF } = require('../utils/pdfgenerator');
 const sendMail = require('../utils/mailservice');
-const path = require('path');
-const fs = require('fs');
 
 /**
  * POST /api/receipt/donate
@@ -17,18 +15,18 @@ exports.addDonation = async (req, res) => {
   try {
     const { fullName, email, phone, amount, mode, purpose, date, transactionId, chequeNumber, accountNumber, ifsc } = req.body;
 
-    if (!fullName || !email || !amount || !mode) {
-      return res.status(400).json({ message: 'fullName, email, amount, and mode are required' });
+    if (!fullName || !phone || !amount || !mode) {
+      return res.status(400).json({ message: 'fullName, phone, amount, and mode are required' });
     }
 
-    // 1. Strict Find: match donor by exact email
-    let donor = await Donor.findOne({ email: { $regex: `^${email}$`, $options: 'i' } });
+    // 1. Strict Find: match donor by exact phone
+    let donor = await Donor.findOne({ mobile: phone });
 
     if (!donor) {
       return res.status(404).json({ message: 'Donor not registered in database. Please register them first.' });
     } else {
-      // Opt: update phone if missing
-      if (phone && !donor.mobile) donor.mobile = phone;
+      // Opt: update email if missing
+      if (email && !donor.email) donor.email = email;
     }
 
     const receiptNo = 'RCPT-' + Date.now();
@@ -49,27 +47,21 @@ exports.addDonation = async (req, res) => {
     donor.donations.push(donationData);
     await donor.save();
 
-    // 2. Generate PDF
-    const receiptsDir = path.join(__dirname, '../receipts');
-    if (!fs.existsSync(receiptsDir)) fs.mkdirSync(receiptsDir, { recursive: true });
-    const filePath = path.join(receiptsDir, `${receiptNo}.pdf`);
-
-    // Use donor details directly for the PDF
+    // 2. Generate PDF in-memory cleanly
     const donorForPDF = {
       ...donor.toObject(),
       fullName: fullName || donor.fullName,
     };
 
-    generateReceiptPDF(donorForPDF, donationData, filePath);
-
-    // 3. Send email (non-blocking)
-    const recipientEmail = email || donor.email;
-    if (recipientEmail) {
-      setTimeout(async () => {
-        try { await sendMail(recipientEmail, filePath); }
-        catch (e) { console.error('Email send failed:', e.message); }
-      }, 1800);
-    }
+    // Background generation and email sequence
+    generateReceiptPDF(donorForPDF, donationData)
+      .then(pdfBuffer => {
+         const recipientEmail = email || donor.email;
+         if (recipientEmail) {
+            sendMail(recipientEmail, pdfBuffer).catch(e => console.error('Email error:', e.message));
+         }
+      })
+      .catch(e => console.error('PDF generation error:', e.message));
 
     res.json({
       message: 'Donation recorded, invoice generated',
@@ -118,12 +110,19 @@ exports.getReceiptByNumber = async (req, res) => {
 };
 
 // Download receipt PDF
-exports.downloadReceipt = (req, res) => {
-  const { receiptNo } = req.params;
-  const filePath = path.join(__dirname, `../receipts/${receiptNo}.pdf`);
-  if (fs.existsSync(filePath)) {
-    res.download(filePath);
-  } else {
-    res.status(404).json({ message: 'Receipt PDF not found. It may still be generating — try again in a moment.' });
+exports.downloadReceipt = async (req, res) => {
+  try {
+    const { receiptNo } = req.params;
+    const donor = await Donor.findOne({ 'donations.receiptNo': receiptNo });
+    if (!donor) return res.status(404).json({ message: 'Receipt not found' });
+
+    const receipt = donor.donations.find(d => d.receiptNo === receiptNo);
+    
+    // Generate PDF natively
+    const pdfBuffer = await generateReceiptPDF(donor, receipt);
+    res.contentType('application/pdf');
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

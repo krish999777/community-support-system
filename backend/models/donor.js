@@ -21,6 +21,8 @@ const donorSchema = new mongoose.Schema({
   address: String,
   pan: String,
   aadhaar: String,
+  panFile: { data: Buffer, contentType: String },
+  aadhaarFile: { data: Buffer, contentType: String },
   donations: [donationSchema]
 });
 

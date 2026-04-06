@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-const sendMail = async (to, filePath) => {
+const sendMail = async (to, pdfBuffer) => {
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT,
@@ -16,7 +16,7 @@ const sendMail = async (to, filePath) => {
     to,
     subject: 'Donation Receipt',
     text: 'Thank you for your generous donation. Please find your official receipt attached.',
-    attachments: [{ path: filePath }]
+    attachments: [{ filename: 'Donation_Receipt.pdf', content: pdfBuffer }]
   });
 };
 

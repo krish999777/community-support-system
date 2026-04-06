@@ -9,6 +9,8 @@ const EMPTY_FORM = {
   address: '',
   pan: '',
   aadhaar: '',
+  panFile: null,
+  aadhaarFile: null,
 };
 
 export default function DonorRegistration() {
@@ -20,16 +22,20 @@ export default function DonorRegistration() {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    const { name, value, type, files } = e.target;
+    if (type === 'file') {
+      setForm(f => ({ ...f, [name]: files[0] }));
+    } else {
+      setForm(f => ({ ...f, [name]: value }));
+    }
     setError('');
     setSuccess(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email) {
-      setError('Email Address is required to register a donor.');
+    if (!form.phone || form.phone.trim() === '') {
+      setError('Phone Number is required to register a donor.');
       return;
     }
     
@@ -38,14 +44,17 @@ export default function DonorRegistration() {
     setSuccess(false);
     
     try {
-      await addDonor({
-        fullName: form.fullName,
-        email: form.email,
-        mobile: form.phone,
-        address: form.address,
-        pan: form.pan,
-        aadhaar: form.aadhaar,
-      });
+      const formData = new FormData();
+      formData.append('fullName', form.fullName);
+      if (form.email) formData.append('email', form.email);
+      formData.append('mobile', form.phone);
+      if (form.address) formData.append('address', form.address);
+      if (form.pan) formData.append('pan', form.pan);
+      if (form.aadhaar) formData.append('aadhaar', form.aadhaar);
+      if (form.panFile) formData.append('panFile', form.panFile);
+      if (form.aadhaarFile) formData.append('aadhaarFile', form.aadhaarFile);
+
+      await addDonor(formData);
       setSuccess(true);
       setForm(EMPTY_FORM);
     } catch (err) {
@@ -94,15 +103,14 @@ export default function DonorRegistration() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Email Address *</label>
+                <label className="form-label">Email Address</label>
                 <input
                   className="form-input"
                   type="email"
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="donor@example.com"
-                  required
+                  placeholder="donor@example.com (optional)"
                 />
               </div>
             </div>
@@ -110,13 +118,14 @@ export default function DonorRegistration() {
             {/* ── Row 2: Phone & Address ── */}
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Phone Number</label>
+                <label className="form-label">Phone Number *</label>
                 <input
                   className="form-input"
                   name="phone"
                   value={form.phone}
                   onChange={handleChange}
                   placeholder="10-digit mobile number"
+                  required
                 />
               </div>
               <div className="form-group">
@@ -131,7 +140,7 @@ export default function DonorRegistration() {
               </div>
             </div>
 
-            {/* ── Row 3: PAN & Aadhaar ── */}
+            {/* ── Row 3: PAN & Aadhaar Strings ── */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">PAN Number</label>
@@ -151,6 +160,32 @@ export default function DonorRegistration() {
                   value={form.aadhaar}
                   onChange={handleChange}
                   placeholder="12-digit Aadhaar (optional)"
+                />
+              </div>
+            </div>
+
+            {/* ── Row 4: PAN & Aadhaar Files ── */}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Upload PAN Card Image (Optional)</label>
+                <input
+                  className="form-input"
+                  type="file"
+                  name="panFile"
+                  accept="image/*,application/pdf"
+                  onChange={handleChange}
+                  style={{ padding: '8px' }}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Upload Aadhaar Card Image (Optional)</label>
+                <input
+                  className="form-input"
+                  type="file"
+                  name="aadhaarFile"
+                  accept="image/*,application/pdf"
+                  onChange={handleChange}
+                  style={{ padding: '8px' }}
                 />
               </div>
             </div>
