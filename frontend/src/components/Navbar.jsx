@@ -30,6 +30,9 @@ export default function Navbar() {
         <Link to="/invoice" className={`nav-link ${location.pathname === '/invoice' ? 'active' : ''}`}>
           Invoice Lookup
         </Link>
+        <Link to="/donor-lookup" className={`nav-link ${location.pathname === '/donor-lookup' ? 'active' : ''}`}>
+          Donor Lookup
+        </Link>
       </div>
       <div className="navbar-right">
         <span className="navbar-user">👤 {username}</span>

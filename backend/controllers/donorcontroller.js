@@ -40,9 +40,36 @@ exports.searchdonor = async (req, res) => {
   try {
     const { query } = req.params;
 
-    const donor = await Donor.findOne({ mobile: query });
+    const donor = await Donor.findOne({ mobile: query }).select('-panFile -aadhaarFile');
 
     res.json(donor);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getDonorProfile = async (req, res) => {
+  try {
+    const { mobile } = req.params;
+    const donor = await Donor.findOne({ mobile });
+    if (!donor) return res.status(404).json({ message: 'Donor not found' });
+
+    const donorObj = donor.toObject();
+
+    // Convert BSON binary data to Base64 for safe HTML transfer
+    if (donorObj.panFile && donorObj.panFile.data) {
+      const b64 = donorObj.panFile.data.toString('base64');
+      donorObj.panFile.base64 = `data:${donorObj.panFile.contentType};base64,${b64}`;
+      delete donorObj.panFile.data; // Don't send the heavy buffer array over JSON
+    }
+
+    if (donorObj.aadhaarFile && donorObj.aadhaarFile.data) {
+      const b64 = donorObj.aadhaarFile.data.toString('base64');
+      donorObj.aadhaarFile.base64 = `data:${donorObj.aadhaarFile.contentType};base64,${b64}`;
+      delete donorObj.aadhaarFile.data;
+    }
+
+    res.json(donorObj);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

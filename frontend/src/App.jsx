@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import DonationForm from './pages/DonationForm';
 import DonorRegistration from './pages/DonorRegistration';
 import InvoiceLookup from './pages/InvoiceLookup';
+import DonorLookup from './pages/DonorLookup';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
@@ -41,6 +42,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><InvoiceLookup /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/donor-lookup"
+          element={
+            <ProtectedRoute>
+              <Layout><DonorLookup /></Layout>
             </ProtectedRoute>
           }
         />
