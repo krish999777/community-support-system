@@ -1,28 +1,102 @@
-import { useState } from 'react';
-import { getDonorProfile, downloadReceiptUrl } from '../services/api';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getDonorProfile, downloadReceiptUrl, updateDonorProfile } from '../services/api';
 
 export default function DonorLookup() {
-  const [mobile, setMobile] = useState('');
+  const { phone } = useParams();
+  const navigate = useNavigate();
+  const [mobile, setMobile] = useState(phone || '');
   const [donor, setDonor] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Edit states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!mobile.trim()) return;
-    
+  const fetchProfile = async (num) => {
+    if (!num.trim()) return;
     setLoading(true);
     setError('');
     setDonor(null);
-
     try {
-      const res = await getDonorProfile(mobile.trim());
+      const res = await getDonorProfile(num.trim());
       setDonor(res.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Donor not found or an error occurred.');
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (phone) {
+      fetchProfile(phone);
+    }
+  }, [phone]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (isEditing) setIsEditing(false);
+    fetchProfile(mobile);
+  };
+
+  const handleEditClick = () => {
+    setEditForm({
+      fullName: donor.fullName,
+      email: donor.email || '',
+      mobile: donor.mobile,
+      address: donor.address || '',
+      nearestRailwayStation: donor.nearestRailwayStation || '',
+      pan: donor.pan || '',
+      aadhaar: donor.aadhaar || '',
+      panFile: null,
+      aadhaarFile: null
+    });
+    setIsEditing(true);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: files[0] }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setUpdateLoading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      Object.keys(editForm).forEach(key => {
+        if (editForm[key] !== null) {
+          formData.append(key, editForm[key]);
+        }
+      });
+
+      await updateDonorProfile(donor.mobile, formData);
+      setIsEditing(false);
+      // If mobile changed, update the URL and state
+      if (editForm.mobile !== donor.mobile) {
+        navigate(`/donor-lookup/${editForm.mobile}`, { replace: true });
+      } else {
+        fetchProfile(donor.mobile);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update donor profile.');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setError('');
   };
 
   const renderDocument = (fileObj, title) => {
@@ -79,16 +153,86 @@ export default function DonorLookup() {
           
           {/* Detailed Profile Grid */}
           <div className="card">
-            <h3>📝 Personal Information</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
-              <div><strong>Full Name:</strong><br/>{donor.fullName || '-'}</div>
-              <div><strong>Phone Number:</strong><br/>{donor.mobile || '-'}</div>
-              <div><strong>Email Address:</strong><br/>{donor.email || '-'}</div>
-              <div><strong>PAN Number:</strong><br/>{donor.pan || '-'}</div>
-              <div><strong>Aadhaar Number:</strong><br/>{donor.aadhaar || '-'}</div>
-              <div><strong>Address:</strong><br/>{donor.address || '-'}</div>
-              <div><strong>Nearest Railway Station:</strong><br/>{donor.nearestRailwayStation || '-'}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>📝 Personal Information</h3>
+              {!isEditing && (
+                <button className="btn-secondary" onClick={handleEditClick} style={{ padding: '6px 16px', fontSize: '13px' }}>
+                  Edit Profile
+                </button>
+              )}
             </div>
+
+            {isEditing ? (
+              <form onSubmit={handleSave}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input className="form-input" name="fullName" value={editForm.fullName} onChange={handleEditChange} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Phone Number</label>
+                    <input className="form-input" name="mobile" value={editForm.mobile} onChange={handleEditChange} maxLength="10" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Email Address</label>
+                    <input className="form-input" type="email" name="email" value={editForm.email} onChange={handleEditChange} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nearest Railway Station</label>
+                    <input className="form-input" name="nearestRailwayStation" value={editForm.nearestRailwayStation} onChange={handleEditChange} required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">PAN Number</label>
+                    <input className="form-input" name="pan" value={editForm.pan} onChange={handleEditChange} maxLength="10" required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Aadhaar Number</label>
+                    <input className="form-input" name="aadhaar" value={editForm.aadhaar} onChange={handleEditChange} maxLength="12" required />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Residential Address</label>
+                  <input className="form-input" name="address" value={editForm.address} onChange={handleEditChange} required />
+                </div>
+
+                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                  <h4 style={{ marginBottom: '16px' }}>Update Documents (Keep empty to preserve current files)</h4>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">New PAN Card Image</label>
+                      <input className="form-input" type="file" name="panFile" accept="image/*,application/pdf" onChange={handleFileChange} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">New Aadhaar Card Image</label>
+                      <input className="form-input" type="file" name="aadhaarFile" accept="image/*,application/pdf" onChange={handleFileChange} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                  <button className="btn-success" type="submit" disabled={updateLoading} style={{ flex: 1 }}>
+                    {updateLoading ? 'Saving Changes...' : 'Save Changes'}
+                  </button>
+                  <button className="btn-logout" type="button" onClick={handleCancel} disabled={updateLoading} style={{ padding: '10px 24px' }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                <div><strong>Full Name:</strong><br/>{donor.fullName || '-'}</div>
+                <div><strong>Phone Number:</strong><br/>{donor.mobile || '-'}</div>
+                <div><strong>Email Address:</strong><br/>{donor.email || '-'}</div>
+                <div><strong>PAN Number:</strong><br/>{donor.pan || '-'}</div>
+                <div><strong>Aadhaar Number:</strong><br/>{donor.aadhaar || '-'}</div>
+                <div><strong>Address:</strong><br/>{donor.address || '-'}</div>
+                <div><strong>Nearest Railway Station:</strong><br/>{donor.nearestRailwayStation || '-'}</div>
+              </div>
+            )}
           </div>
 
           {/* Documents display */}

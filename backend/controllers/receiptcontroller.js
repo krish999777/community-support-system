@@ -121,6 +121,7 @@ exports.downloadReceipt = async (req, res) => {
     // Generate PDF natively
     const pdfBuffer = await generateReceiptPDF(donor, receipt);
     res.contentType('application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${receiptNo}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -5,6 +5,7 @@ import DonorRegistration from './pages/DonorRegistration';
 import PublicRegistration from './pages/PublicRegistration';
 import InvoiceLookup from './pages/InvoiceLookup';
 import DonorLookup from './pages/DonorLookup';
+import AllDonors from './pages/AllDonors';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
@@ -51,6 +52,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><DonorLookup /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/donor-lookup/:phone"
+          element={
+            <ProtectedRoute>
+              <Layout><DonorLookup /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/donors"
+          element={
+            <ProtectedRoute>
+              <Layout><AllDonors /></Layout>
             </ProtectedRoute>
           }
         />

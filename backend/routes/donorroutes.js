@@ -10,6 +10,8 @@ const upload = multer({ storage });
 
 router.post('/add', upload.fields([{ name: 'panFile', maxCount: 1 }, { name: 'aadhaarFile', maxCount: 1 }]), donorController.adddonor);
 router.get('/search/:query', auth, donorController.searchdonor);
+router.get('/all', auth, donorController.getAllDonors);
 router.get('/profile/:mobile', auth, donorController.getDonorProfile);
+router.put('/profile/:mobile', auth, upload.fields([{ name: 'panFile', maxCount: 1 }, { name: 'aadhaarFile', maxCount: 1 }]), donorController.updateDonor);
 
 module.exports = router;

@@ -79,7 +79,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Times-Roman')
        .fontSize(24)
        .fillColor('#222222')
-       .text('Samastha Darji Samaaj', 0, startY, { align: 'center', width: pageWidth });
+       .text('Samastha Darji Samaj', 0, startY, { align: 'center', width: pageWidth });
     
     startY += 28;
     

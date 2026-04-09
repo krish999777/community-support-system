@@ -74,3 +74,56 @@ exports.getDonorProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.getAllDonors = async (req, res) => {
+  try {
+    const donors = await Donor.find({}).select('fullName mobile email').sort({ createdAt: -1 });
+    res.json(donors);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateDonor = async (req, res) => {
+  try {
+    const { mobile: currentMobile } = req.params;
+    const { fullName, email, mobile, address, nearestRailwayStation, pan, aadhaar } = req.body;
+
+    let donor = await Donor.findOne({ mobile: currentMobile });
+    if (!donor) return res.status(404).json({ message: 'Donor not found' });
+
+    // Handle mobile change check
+    if (mobile && mobile !== currentMobile) {
+      const exists = await Donor.findOne({ mobile });
+      if (exists) return res.status(400).json({ message: 'The new mobile number is already taken by another donor.' });
+      donor.mobile = mobile;
+    }
+
+    if (fullName) donor.fullName = fullName;
+    if (email !== undefined) donor.email = email;
+    if (address) donor.address = address;
+    if (nearestRailwayStation) donor.nearestRailwayStation = nearestRailwayStation;
+    if (pan) donor.pan = pan;
+    if (aadhaar) donor.aadhaar = aadhaar;
+
+    if (req.files) {
+      if (req.files.panFile && req.files.panFile[0]) {
+        donor.panFile = {
+            data: req.files.panFile[0].buffer,
+            contentType: req.files.panFile[0].mimetype
+        };
+      }
+      if (req.files.aadhaarFile && req.files.aadhaarFile[0]) {
+        donor.aadhaarFile = {
+            data: req.files.aadhaarFile[0].buffer,
+            contentType: req.files.aadhaarFile[0].mimetype
+        };
+      }
+    }
+
+    await donor.save();
+    res.json({ message: 'Donor profile updated successfully', donor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

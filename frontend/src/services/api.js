@@ -18,7 +18,13 @@ export const loginAdmin = (data) => API.post('/api/admin/login', data);
 
 // Donor
 export const searchDonor = (query) => API.get(`/api/donor/search/${encodeURIComponent(query)}`);
+export const getDonors = () => API.get('/api/donor/all');
 export const getDonorProfile = (mobile) => API.get(`/api/donor/profile/${encodeURIComponent(mobile)}`);
+export const updateDonorProfile = (mobile, data) => API.put(`/api/donor/profile/${encodeURIComponent(mobile)}`, data, {
+  headers: {
+    'Content-Type': 'multipart/form-data'
+  }
+});
 export const addDonor = (data) => API.post('/api/donor/add', data, {
   headers: {
     'Content-Type': 'multipart/form-data'

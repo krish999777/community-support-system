@@ -14,9 +14,15 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <div className="navbar-logo">BSC</div>
+        <div className="navbar-logo" style={{ overflow: 'hidden', padding: 0, background: 'none' }}>
+          <img 
+            src="/WhatsApp Image 2026-04-09 at 14.10.43.jpeg" 
+            alt="Logo" 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+          />
+        </div>
         <div>
-          <div className="navbar-title">Babariyawad Social Community</div>
+          <div className="navbar-title">Samastha Darji Samaaj Babariyawad</div>
           <div className="navbar-subtitle">Donor Management System</div>
         </div>
       </div>
@@ -30,8 +36,11 @@ export default function Navbar() {
         <Link to="/invoice" className={`nav-link ${location.pathname === '/invoice' ? 'active' : ''}`}>
           Invoice Lookup
         </Link>
-        <Link to="/donor-lookup" className={`nav-link ${location.pathname === '/donor-lookup' ? 'active' : ''}`}>
+        <Link to="/donor-lookup" className={`nav-link ${location.pathname.startsWith('/donor-lookup') ? 'active' : ''}`}>
           Donor Lookup
+        </Link>
+        <Link to="/donors" className={`nav-link ${location.pathname === '/donors' ? 'active' : ''}`}>
+          All Donors
         </Link>
       </div>
       <div className="navbar-right">
