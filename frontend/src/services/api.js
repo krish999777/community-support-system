@@ -15,6 +15,8 @@ API.interceptors.request.use((config) => {
 
 // Auth
 export const loginAdmin = (data) => API.post('/api/admin/login', data);
+export const getDashboardStats = () => API.get('/api/admin/stats');
+export const exportDonationsUrl = () => `http://localhost:5001/api/admin/export?token=${localStorage.getItem('token')}`;
 
 // Donor
 export const searchDonor = (query) => API.get(`/api/donor/search/${encodeURIComponent(query)}`);

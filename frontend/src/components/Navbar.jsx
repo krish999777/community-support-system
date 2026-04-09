@@ -27,6 +27,9 @@ export default function Navbar() {
         </div>
       </div>
       <div className="navbar-links">
+        <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+          Dashboard
+        </Link>
         <Link to="/donate" className={`nav-link ${location.pathname === '/donate' ? 'active' : ''}`}>
           New Donation
         </Link>

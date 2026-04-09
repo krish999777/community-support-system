@@ -4,6 +4,7 @@ import DonationForm from './pages/DonationForm';
 import DonorRegistration from './pages/DonorRegistration';
 import PublicRegistration from './pages/PublicRegistration';
 import InvoiceLookup from './pages/InvoiceLookup';
+import Dashboard from './pages/Dashboard';
 import DonorLookup from './pages/DonorLookup';
 import AllDonors from './pages/AllDonors';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout><AllDonors /></Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout><Dashboard /></Layout>
             </ProtectedRoute>
           }
         />
