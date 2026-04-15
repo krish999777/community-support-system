@@ -4,12 +4,16 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const username = localStorage.getItem('username');
+  const role = localStorage.getItem('role');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('role');
     navigate('/login');
   };
+
+  const isAdmin = role === 'admin';
 
   return (
     <nav className="navbar">
@@ -26,31 +30,44 @@ export default function Navbar() {
           <div className="navbar-subtitle">Donor Management System</div>
         </div>
       </div>
+      
       <div className="navbar-links">
-        <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
-          Dashboard
-        </Link>
+        {isAdmin && (
+          <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+            Dashboard
+          </Link>
+        )}
+        
         <Link to="/donate" className={`nav-link ${location.pathname === '/donate' ? 'active' : ''}`}>
           New Donation
         </Link>
-        <Link to="/register-donor" className={`nav-link ${location.pathname === '/register-donor' ? 'active' : ''}`}>
-          Register Donor
-        </Link>
-        <Link to="/invoice" className={`nav-link ${location.pathname === '/invoice' ? 'active' : ''}`}>
-          Invoice Lookup
-        </Link>
-        <Link to="/donor-lookup" className={`nav-link ${location.pathname.startsWith('/donor-lookup') ? 'active' : ''}`}>
-          Donor Lookup
-        </Link>
-        <Link to="/donors" className={`nav-link ${location.pathname === '/donors' ? 'active' : ''}`}>
-          All Donors
-        </Link>
-        <Link to="/manage-pins" className={`nav-link ${location.pathname === '/manage-pins' ? 'active' : ''}`}>
-          Access Management
-        </Link>
+
+        {isAdmin && (
+          <>
+            <Link to="/register-donor" className={`nav-link ${location.pathname === '/register-donor' ? 'active' : ''}`}>
+              Register Donor
+            </Link>
+            <Link to="/invoice" className={`nav-link ${location.pathname === '/invoice' ? 'active' : ''}`}>
+              Invoice Lookup
+            </Link>
+            <Link to="/donor-lookup" className={`nav-link ${location.pathname.startsWith('/donor-lookup') ? 'active' : ''}`}>
+              Donor Lookup
+            </Link>
+            <Link to="/donors" className={`nav-link ${location.pathname === '/donors' ? 'active' : ''}`}>
+              All Donors
+            </Link>
+            <Link to="/manage-pins" className={`nav-link ${location.pathname === '/manage-pins' ? 'active' : ''}`}>
+              Access Management
+            </Link>
+          </>
+        )}
       </div>
+
       <div className="navbar-right">
-        <span className="navbar-user">📍 {username}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: '15px' }}>
+          <span className="navbar-user" style={{ fontSize: '13px', fontWeight: 700 }}>📍 {username}</span>
+          <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--primary)', opacity: 0.8 }}>{role}</span>
+        </div>
         <button className="btn-logout" onClick={handleLogout}>Logout</button>
       </div>
     </nav>

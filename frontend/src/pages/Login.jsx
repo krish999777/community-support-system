@@ -60,7 +60,13 @@ export default function Login() {
       const res = await loginWithPin(pinString);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('username', res.data.username);
-      navigate('/dashboard'); // Default to dashboard for admin
+      localStorage.setItem('role', res.data.role);
+
+      if (res.data.role === 'operator') {
+        navigate('/donate');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Invalid PIN.');
       setPin(['', '', '', '']);

@@ -20,11 +20,26 @@ function Layout({ children }) {
   );
 }
 
+// Helper to restrict access based on role
+function RoleRoute({ children, allowedRoles }) {
+  const role = localStorage.getItem('role');
+  if (!allowedRoles.includes(role)) {
+    return <Navigate to="/donate" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        
+        {/* Public Route */}
+        <Route path="/" element={<PublicRegistration />} />
+        <Route path="/register" element={<PublicRegistration />} />
+
+        {/* Protected Routes */}
         <Route
           path="/donate"
           element={
@@ -33,11 +48,25 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Admin-Only Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><Dashboard /></Layout>
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/register-donor"
           element={
             <ProtectedRoute>
-              <Layout><DonorRegistration /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><DonorRegistration /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
@@ -45,7 +74,9 @@ export default function App() {
           path="/invoice"
           element={
             <ProtectedRoute>
-              <Layout><InvoiceLookup /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><InvoiceLookup /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
@@ -53,7 +84,9 @@ export default function App() {
           path="/donor-lookup"
           element={
             <ProtectedRoute>
-              <Layout><DonorLookup /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><DonorLookup /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
@@ -61,7 +94,9 @@ export default function App() {
           path="/donor-lookup/:phone"
           element={
             <ProtectedRoute>
-              <Layout><DonorLookup /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><DonorLookup /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
@@ -69,15 +104,9 @@ export default function App() {
           path="/donors"
           element={
             <ProtectedRoute>
-              <Layout><AllDonors /></Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Layout><Dashboard /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><AllDonors /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
@@ -85,12 +114,13 @@ export default function App() {
           path="/manage-pins"
           element={
             <ProtectedRoute>
-              <Layout><PinManagement /></Layout>
+              <RoleRoute allowedRoles={['admin']}>
+                <Layout><PinManagement /></Layout>
+              </RoleRoute>
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<PublicRegistration />} />
-        <Route path="/register" element={<PublicRegistration />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

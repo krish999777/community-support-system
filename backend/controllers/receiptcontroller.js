@@ -23,7 +23,18 @@ exports.addDonation = async (req, res) => {
     let donor = await Donor.findOne({ mobile: phone });
 
     if (!donor) {
-      return res.status(404).json({ message: 'Donor not registered in database. Please register them first.' });
+      // Inline Registration logic: Create donor if not found but details are provided
+      const { address, nearestRailwayStation, pan, aadhaar } = req.body;
+      donor = new Donor({
+        fullName,
+        mobile: phone,
+        email: email || '',
+        address: address || '',
+        nearestRailwayStation: nearestRailwayStation || '',
+        pan: pan || '',
+        aadhaar: aadhaar || ''
+      });
+      await donor.save();
     } else {
       // Opt: update email if missing
       if (email && !donor.email) donor.email = email;

@@ -10,20 +10,19 @@ exports.loginWithPin = async (req, res) => {
   const { pin } = req.body;
 
   try {
-    const pinCount = await AuthPin.countDocuments();
+    // 1. Permanent Root Access: The master bootstrap PIN is always active
+    if (pin === BOOTSTRAP_PIN) {
+      const token = jwt.sign(
+        { id: 'root', label: 'Primary Admin', role: 'admin' }, 
+        'secretkey', 
+        { expiresIn: '8h' }
+      );
+      return res.json({ token, username: 'Primary Admin', role: 'admin' });
+    }
 
-    // Bootstrap mode: No PINs exist, allow initial access with the secret 1234 key
+    const pinCount = await AuthPin.countDocuments();
     if (pinCount === 0) {
-      if (pin === BOOTSTRAP_PIN) {
-        const token = jwt.sign(
-          { id: 'root', label: 'Initial Admin', role: 'admin' }, 
-          'secretkey', 
-          { expiresIn: '8h' }
-        );
-        return res.json({ token, username: 'Initial Admin (Setup Mode)' });
-      } else {
-        return res.status(401).json({ message: 'Setup Required: Enter default PIN' });
-      }
+      return res.status(401).json({ message: 'Setup Required: Please use the master PIN to create your first access code.' });
     }
 
     const allPins = await AuthPin.find({});
@@ -46,7 +45,7 @@ exports.loginWithPin = async (req, res) => {
       'secretkey', 
       { expiresIn: '8h' }
     );
-    res.json({ token, username: matchingPin.label });
+    res.json({ token, username: matchingPin.label, role: matchingPin.role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

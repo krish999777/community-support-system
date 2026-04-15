@@ -92,11 +92,11 @@ export default function PinManagement() {
                 onChange={(e) => setNewPin({ ...newPin, role: e.target.value })}
               >
                 <option value="admin">Admin (Full Access)</option>
-                <option value="viewer">Viewer (Read-Only)</option>
+                <option value="operator">Operator (Donated Entry Only)</option>
               </select>
             </div>
             {error && <div className="error-box" style={{ marginBottom: '20px' }}>{error}</div>}
-            {success && <div className="success-box" style={{ marginBottom: '20px', background: '#ecfdf5', color: '#10b981', padding: '12px', borderRadius: '8px' }}>{success}</div>}
+            {success && <div className="success-box" style={{ marginBottom: '20px' }}>{success}</div>}
             <button className="btn-primary" type="submit" style={{ width: '100%' }}>
               Register PIN
             </button>
