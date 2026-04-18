@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDonorProfile, downloadReceiptUrl, updateDonorProfile } from '../services/api';
+import { getDonorProfile, downloadReceiptUrl, updateDonorProfile, deleteDonorProfile } from '../services/api';
+import { processFileUpload } from '../utils/fileUpload';
 
 export default function DonorLookup() {
   const { phone } = useParams();
@@ -9,6 +10,7 @@ export default function DonorLookup() {
   const [donor, setDonor] = useState(null);
   const [loading, setLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState('');
   
   // Edit states
@@ -57,6 +59,26 @@ export default function DonorLookup() {
     setIsEditing(true);
   };
 
+  const handleDeleteClick = async () => {
+    if (!window.confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY delete ${donor.fullName} and all their records? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    setError('');
+    try {
+      await deleteDonorProfile(donor.mobile);
+      alert('Donor deleted successfully.');
+      setDonor(null);
+      setMobile('');
+      navigate('/donor-lookup', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete donor. They may have associated records that prevent deletion.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditForm(prev => ({ ...prev, [name]: value }));
@@ -73,11 +95,16 @@ export default function DonorLookup() {
     setError('');
     try {
       const formData = new FormData();
-      Object.keys(editForm).forEach(key => {
-        if (editForm[key] !== null) {
+      for (const key of Object.keys(editForm)) {
+        if (key === 'panFile' || key === 'aadhaarFile') {
+          if (editForm[key] !== null) {
+            const processedFile = await processFileUpload(editForm[key]);
+            if (processedFile) formData.append(key, processedFile);
+          }
+        } else if (editForm[key] !== null) {
           formData.append(key, editForm[key]);
         }
-      });
+      }
 
       await updateDonorProfile(donor.mobile, formData);
       setIsEditing(false);
@@ -145,7 +172,7 @@ export default function DonorLookup() {
             {loading ? 'Searching…' : 'Search Profile'}
           </button>
         </form>
-        {error && <div className="error-box">{error}</div>}
+        {error && <div className="error-box" style={{ marginBottom: '16px' }}>{error}</div>}
       </div>
 
       {donor && (
@@ -156,9 +183,14 @@ export default function DonorLookup() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>📝 Personal Information</h3>
               {!isEditing && (
-                <button className="btn-secondary" onClick={handleEditClick} style={{ padding: '6px 16px', fontSize: '13px' }}>
-                  Edit Profile
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn-secondary" onClick={handleEditClick} style={{ padding: '6px 16px', fontSize: '13px' }}>
+                    Edit Profile
+                  </button>
+                  <button className="btn-logout" onClick={handleDeleteClick} disabled={deleteLoading} style={{ padding: '6px 16px', fontSize: '13px', border: '1px solid #ef4444' }}>
+                    {deleteLoading ? 'Deleting...' : 'Delete Donor'}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -267,7 +299,7 @@ export default function DonorLookup() {
                     </tr>
                   </thead>
                   <tbody>
-                    {donor.donations.reverse().map((d, i) => (
+                    {[...donor.donations].reverse().map((d, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
                         <td style={{ padding: '12px' }}>{new Date(d.date).toLocaleDateString('en-IN')}</td>
                         <td style={{ padding: '12px' }}><strong>{d.receiptNo}</strong></td>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addDonor } from '../services/api';
+import { processFileUpload } from '../utils/fileUpload';
 
 const EMPTY_FORM = {
   fullName: '',
@@ -69,6 +70,9 @@ export default function DonorRegistration() {
     setSuccess(false);
     
     try {
+      const processedPanFile = await processFileUpload(form.panFile);
+      const processedAadhaarFile = await processFileUpload(form.aadhaarFile);
+
       const formData = new FormData();
       formData.append('fullName', form.fullName);
       if (form.email) formData.append('email', form.email);
@@ -77,15 +81,16 @@ export default function DonorRegistration() {
       if (form.nearestRailwayStation) formData.append('nearestRailwayStation', form.nearestRailwayStation);
       if (form.pan) formData.append('pan', form.pan);
       if (form.aadhaar) formData.append('aadhaar', form.aadhaar);
-      if (form.panFile) formData.append('panFile', form.panFile);
-      if (form.aadhaarFile) formData.append('aadhaarFile', form.aadhaarFile);
+      if (processedPanFile) formData.append('panFile', processedPanFile);
+      if (processedAadhaarFile) formData.append('aadhaarFile', processedAadhaarFile);
 
       await addDonor(formData);
       setSuccess(true);
       setForm(EMPTY_FORM);
     } catch (err) {
+      console.error("Registration Error: ", err);
       setError(
-        err.response?.data?.message || err.response?.data?.error || 'Failed to register donor. Please try again.'
+        err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to register donor. Please try again.'
       );
     } finally {
       setLoading(false);

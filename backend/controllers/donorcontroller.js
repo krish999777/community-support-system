@@ -127,3 +127,15 @@ exports.updateDonor = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.deleteDonor = async (req, res) => {
+  try {
+    const { mobile } = req.params;
+    const donor = await Donor.findOneAndDelete({ mobile });
+    if (!donor) return res.status(404).json({ message: 'Donor not found' });
+    
+    res.json({ message: 'Donor and all associated records deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

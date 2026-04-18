@@ -34,6 +34,7 @@ export const updateDonorProfile = (mobile, data) => API.put(`/api/donor/profile/
     'Content-Type': 'multipart/form-data'
   }
 });
+export const deleteDonorProfile = (mobile) => API.delete(`/api/donor/profile/${encodeURIComponent(mobile)}`);
 export const addDonor = (data) => API.post('/api/donor/add', data, {
   headers: {
     'Content-Type': 'multipart/form-data'
