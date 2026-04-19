@@ -10,6 +10,23 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // If user is already logged in, extract their role from the token and redirect instantly
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.role === 'admin') {
+          navigate('/dashboard', { replace: true });
+        } else {
+          navigate('/donate', { replace: true });
+        }
+        return; // Stop running the rest of the effect
+      }
+    } catch (err) {
+      // Token is malformed or invalid, just clear it and render login page normally
+      localStorage.removeItem('token');
+    }
+
     // Check for expiration redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('expired')) {
