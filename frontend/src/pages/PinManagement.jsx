@@ -104,7 +104,7 @@ export default function PinManagement() {
         </div>
 
         {/* PIN List */}
-        <div className="card">
+        <div className="card" style={{ minWidth: 0 }}>
           <h3 style={{ marginBottom: '20px' }}>Active Access Codes</h3>
           {loading ? (
             <p>Loading active access codes...</p>

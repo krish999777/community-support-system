@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   return (
     <div className="fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h2>Community Overview Dashboard</h2>
           <p>Real-time financial performance and donor engagement metrics.</p>
@@ -42,7 +42,7 @@ export default function Dashboard() {
       </div>
 
       {/* Top Level Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '20px', marginBottom: '32px' }}>
         <div className="card" style={{ textAlign: 'center', borderTop: '4px solid #4f46e5' }}>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', fontWeight: 600 }}>Total Collected</div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: '#4f46e5' }}>₹{stats.totalAmount.toLocaleString('en-IN')}</div>
@@ -57,10 +57,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: '24px' }}>
         
         {/* Monthly Breakdown */}
-        <div className="card">
+        <div className="card" style={{ minWidth: 0 }}>
           <h3 style={{ marginBottom: '20px', fontSize: '16px' }}>📅 Monthly Performance</h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -85,7 +85,7 @@ export default function Dashboard() {
         </div>
 
         {/* Visual Analytics */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
           
           {/* Payment Mode Bars */}
           <div className="card">
