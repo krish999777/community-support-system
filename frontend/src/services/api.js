@@ -57,7 +57,7 @@ export const addDonor = (data) => API.post('/api/donor/add', data, {
     'Content-Type': 'multipart/form-data'
   }
 });
-export const addPublicDonor = (data) => axios.post('http://localhost:5001/api/donor/add', data, {
+export const addPublicDonor = (data) => axios.post(`${API_URL}/api/donor/add`, data, {
   headers: {
     'Content-Type': 'multipart/form-data'
   }
@@ -66,4 +66,4 @@ export const addPublicDonor = (data) => axios.post('http://localhost:5001/api/do
 // Receipts
 export const addDonation = (data) => API.post('/api/receipt/donate', data);
 export const getReceiptByNumber = (receiptNo) => API.get(`/api/receipt/receipt/${receiptNo}`);
-export const downloadReceiptUrl = (receiptNo) => `http://localhost:5001/api/receipt/download/${receiptNo}?token=${localStorage.getItem('token')}`;
+export const downloadReceiptUrl = (receiptNo) => `${API_URL}/api/receipt/download/${receiptNo}?token=${localStorage.getItem('token')}`;
