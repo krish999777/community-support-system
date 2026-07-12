@@ -88,6 +88,13 @@ exports.deletePin = async (req, res) => {
 
 exports.getDashboardStats = async (req, res) => {
   try {
+    // Extract filters from query parameters
+    const { year, month, purpose } = req.query;
+    // Normalize filters: if not provided or set to 'all', treat as undefined
+    const yearFilter = year && year !== 'all' ? parseInt(year, 10) : undefined;
+    const monthFilter = month && month !== 'all' ? month.toString().toLowerCase() : undefined; // expects month name or number string
+    const purposeFilter = purpose && purpose !== 'all' ? purpose.toString().toLowerCase() : undefined;
+
     const donors = await Donor.find({});
 
     let totalAmount = 0;
@@ -100,27 +107,47 @@ exports.getDashboardStats = async (req, res) => {
 
     donors.forEach(donor => {
       if (donor.donations && donor.donations.length > 0) {
-        uniqueDonorsCount++;
-        donor.donations.forEach(d => {
-          totalAmount += Number(d.amount);
-
-          // Monthly breakdown
-          const date = new Date(d.date);
-          const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-          if (!monthlyStatsMap[monthYear]) {
-            monthlyStatsMap[monthYear] = { month: monthYear, amount: 0, count: 0, sortKey: date.getTime() };
+        // Determine if this donor contributed after applying filters
+        const filteredDonations = donor.donations.filter(d => {
+          const donationDate = new Date(d.date);
+          if (yearFilter && donationDate.getFullYear() !== yearFilter) return false;
+          if (monthFilter) {
+            // Accept month as number (1-12) or full month name
+            const monthNum = donationDate.getMonth() + 1; // 1-12
+            const monthName = donationDate.toLocaleString('default', { month: 'long' }).toLowerCase();
+            if (!isNaN(parseInt(monthFilter))) {
+              if (monthNum !== parseInt(monthFilter, 10)) return false;
+            } else {
+              if (monthName !== monthFilter) return false;
+            }
           }
-          monthlyStatsMap[monthYear].amount += Number(d.amount);
-          monthlyStatsMap[monthYear].count += 1;
-
-          // Payment Mode
-          const mode = d.mode || 'Unknown';
-          paymentModeMap[mode] = (paymentModeMap[mode] || 0) + Number(d.amount);
-
-          // Purpose
-          const purpose = d.purpose || 'General';
-          purposeMap[purpose] = (purposeMap[purpose] || 0) + Number(d.amount);
+          if (purposeFilter && (!d.purpose || d.purpose.toString().toLowerCase() !== purposeFilter)) return false;
+          return true;
         });
+
+        if (filteredDonations.length > 0) {
+          uniqueDonorsCount++;
+          filteredDonations.forEach(d => {
+            totalAmount += Number(d.amount);
+
+            // Monthly breakdown (still based on filtered date)
+            const date = new Date(d.date);
+            const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+            if (!monthlyStatsMap[monthYear]) {
+              monthlyStatsMap[monthYear] = { month: monthYear, amount: 0, count: 0, sortKey: date.getTime() };
+            }
+            monthlyStatsMap[monthYear].amount += Number(d.amount);
+            monthlyStatsMap[monthYear].count += 1;
+
+            // Payment Mode aggregation
+            const mode = d.mode || 'Unknown';
+            paymentModeMap[mode] = (paymentModeMap[mode] || 0) + Number(d.amount);
+
+            // Purpose aggregation
+            const purp = d.purpose || 'General';
+            purposeMap[purp] = (purposeMap[purp] || 0) + Number(d.amount);
+          });
+        }
       }
     });
 
