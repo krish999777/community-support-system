@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
-const connectDB = require('../config/db');
+const connectDB = require('../config/db');   // ✅ CORRECT
 
 const app = express();
 
@@ -13,20 +14,30 @@ app.use(express.json());
 // ✅ Connect MongoDB
 connectDB();
 
-// ✅ Routes
+// ✅ API Routes FIRST (correct paths)
 app.use('/api/donor', require('../routes/donorroutes'));
 app.use('/api/receipt', require('../routes/receiptroutes'));
 app.use('/api/admin', require('../routes/adminroutes'));
 app.use('/api/import', require('../routes/importroutes'));
 
-// ✅ Test route
-app.get('/', (req, res) => {
-  res.send('API is running...');
+// ================= SERVE FRONTEND =================
+
+// React build copied by Docker to backend/public
+const frontendPath = path.join(__dirname, '../public');
+app.use(express.static(frontendPath));
+
+// For any non-API route, serve React index.html
+app.use((req, res) => {
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({ message: 'API route not found' });
+  }
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// ✅ IMPORTANT FOR RENDER (do NOT hardcode port)
+// ==================================================
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

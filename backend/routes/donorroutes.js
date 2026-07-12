@@ -3,7 +3,7 @@ const router = express.Router();
 const donorController = require('../controllers/donorcontroller');
 const auth = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
-const multer = require('multer');
+const multer = require('multer')
 const path = require('path');
 
 const storage = multer.memoryStorage();
