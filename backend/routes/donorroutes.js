@@ -15,5 +15,6 @@ router.get('/all', auth, requireAdmin, donorController.getAllDonors);
 router.get('/profile/:mobile', auth, donorController.getDonorProfile);
 router.put('/profile/:mobile', auth, requireAdmin, upload.fields([{ name: 'panFile', maxCount: 1 }, { name: 'aadhaarFile', maxCount: 1 }]), donorController.updateDonor);
 router.delete('/profile/:mobile', auth, requireAdmin, donorController.deleteDonor);
+router.get('/git-commit', (req, res) => res.json({ commit: process.env.RENDER_GIT_COMMIT || 'no-env' }));
 
 module.exports = router;
