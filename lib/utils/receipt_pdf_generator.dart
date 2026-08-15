@@ -55,6 +55,15 @@ class ReceiptPdfGenerator {
     final font = await _loadFont(language);
     final englishFont = await _loadFont("english");
 
+    // Load logo image from assets
+    pw.ImageProvider? logoImageProvider;
+    try {
+      final logoData = await rootBundle.load("assets/logo.jpg");
+      logoImageProvider = pw.MemoryImage(logoData.buffer.asUint8List());
+    } catch (e) {
+      print("Failed to load logo image: $e");
+    }
+
     // Dictionary of translations
     final translations = {
       "gujarati": {
@@ -174,22 +183,10 @@ class ReceiptPdfGenerator {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // Circular Stamp Placeholder
-                    pw.Container(
-                      width: 50,
-                      height: 50,
-                      decoration: pw.BoxDecoration(
-                        shape: pw.BoxShape.circle,
-                        border: pw.Border.all(color: PdfColors.red800, width: 2),
-                      ),
-                      alignment: pw.Alignment.center,
-                      padding: const pw.EdgeInsets.all(2),
-                      child: pw.Text(
-                        "SEAL",
-                        style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, color: PdfColors.red800, fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    ),
+                    // Circular Stamp replaced with Samaj Logo
+                    logoImageProvider != null
+                        ? pw.Image(logoImageProvider, width: 50, height: 50)
+                        : pw.Container(width: 50, height: 50),
 
                     // Header Info
                     pw.Expanded(
@@ -455,57 +452,14 @@ class ReceiptPdfGenerator {
                 ),
                 pw.SizedBox(height: 16),
 
-                // Signatures row
+                // Signatures row removed, showing only thank you / cooperation message
                 pw.Spacer(),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          labels["coop"]!,
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
-                        ),
-                      ],
-                    ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Container(
-                          width: 80,
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey700, width: 1)),
-                          ),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          labels["treasurer"]!,
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
-                        ),
-                      ],
-                    ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(
-                          receivedBy,
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
-                        ),
-                        pw.Container(
-                          width: 80,
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey700, width: 1)),
-                          ),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          labels["receiver"]!,
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
-                        ),
-                      ],
-                    ),
-                  ],
+                pw.Align(
+                  alignment: pw.Alignment.centerLeft,
+                  child: pw.Text(
+                    labels["coop"]!,
+                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
+                  ),
                 ),
               ],
             ),
