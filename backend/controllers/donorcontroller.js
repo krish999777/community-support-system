@@ -77,7 +77,7 @@ exports.getDonorProfile = async (req, res) => {
 
 exports.getAllDonors = async (req, res) => {
   try {
-    const donors = await Donor.find({}).select('fullName mobile email').sort({ createdAt: -1 });
+    const donors = await Donor.find({}).select('-panFile -aadhaarFile').sort({ createdAt: -1 });
     res.json(donors);
   } catch (err) {
     res.status(500).json({ error: err.message });
