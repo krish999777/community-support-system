@@ -6,7 +6,7 @@ exports.adddonor = async (req, res) => {
     if (!mobile) {
       return res.status(400).json({ message: 'Phone Number is required.' });
     }
-    
+
     // Check missing donor phone
     const existingDonor = await Donor.findOne({ mobile });
     if (existingDonor) {
@@ -17,14 +17,14 @@ exports.adddonor = async (req, res) => {
     if (req.files) {
       if (req.files.panFile && req.files.panFile[0]) {
         donorData.panFile = {
-            data: req.files.panFile[0].buffer,
-            contentType: req.files.panFile[0].mimetype
+          data: req.files.panFile[0].buffer,
+          contentType: req.files.panFile[0].mimetype
         };
       }
       if (req.files.aadhaarFile && req.files.aadhaarFile[0]) {
         donorData.aadhaarFile = {
-            data: req.files.aadhaarFile[0].buffer,
-            contentType: req.files.aadhaarFile[0].mimetype
+          data: req.files.aadhaarFile[0].buffer,
+          contentType: req.files.aadhaarFile[0].mimetype
         };
       }
     }
@@ -77,7 +77,7 @@ exports.getDonorProfile = async (req, res) => {
 
 exports.getAllDonors = async (req, res) => {
   try {
-    const donors = await Donor.find({}).select('-panFile -aadhaarFile').sort({ createdAt: -1 });
+    const donors = await Donor.find({}).select('fullName mobile email').sort({ createdAt: -1 });
     res.json(donors);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -109,14 +109,14 @@ exports.updateDonor = async (req, res) => {
     if (req.files) {
       if (req.files.panFile && req.files.panFile[0]) {
         donor.panFile = {
-            data: req.files.panFile[0].buffer,
-            contentType: req.files.panFile[0].mimetype
+          data: req.files.panFile[0].buffer,
+          contentType: req.files.panFile[0].mimetype
         };
       }
       if (req.files.aadhaarFile && req.files.aadhaarFile[0]) {
         donor.aadhaarFile = {
-            data: req.files.aadhaarFile[0].buffer,
-            contentType: req.files.aadhaarFile[0].mimetype
+          data: req.files.aadhaarFile[0].buffer,
+          contentType: req.files.aadhaarFile[0].mimetype
         };
       }
     }
@@ -133,7 +133,7 @@ exports.deleteDonor = async (req, res) => {
     const { mobile } = req.params;
     const donor = await Donor.findOneAndDelete({ mobile });
     if (!donor) return res.status(404).json({ message: 'Donor not found' });
-    
+
     res.json({ message: 'Donor and all associated records deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
