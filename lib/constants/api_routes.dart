@@ -5,7 +5,7 @@ class ApiRoutes {
   // Use 10.0.2.2 for Android emulator to access local machine's localhost.
   // Use localhost for iOS simulator or web.
   static String get baseUrl {
-    return "https://community-support-system-latest.onrender.com/api";
+    return "https://community-support-system-rbrz.onrender.com/api";
   }
 
   // Admin / Auth

@@ -1,44 +1,24 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:dio/dio.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../models/donor.dart';
 
 class ReceiptPdfGenerator {
-  static const String _gujaratiFontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansgujarati/NotoSansGujarati-Regular.ttf";
-  static const String _hindiFontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdevanagari/NotoSansDevanagari-Regular.ttf";
-  static const String _englishFontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans-Regular.ttf";
-
-  // Helper to fetch and cache font file
+  // Helper to load font file from local assets
   static Future<pw.Font> _loadFont(String lang) async {
-    String url = _englishFontUrl;
-    String fontName = "NotoSans";
-
-    if (lang == "gujarati") {
-      url = _gujaratiFontUrl;
-      fontName = "NotoSansGujarati";
-    } else if (lang == "hindi") {
-      url = _hindiFontUrl;
-      fontName = "NotoSansDevanagari";
-    }
-
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$fontName-Regular.ttf');
-
-      if (!await file.exists()) {
-        final dio = Dio();
-        await dio.download(
-          url, 
-          file.path,
-          options: Options(responseType: ResponseType.bytes),
-        );
+      String fontPath = "assets/fonts/NotoSans-Regular.ttf";
+      if (lang == "gujarati") {
+        fontPath = "assets/fonts/NotoSansGujarati-Regular.ttf";
+      } else if (lang == "hindi") {
+        fontPath = "assets/fonts/NotoSansDevanagari-Regular.ttf";
       }
-      final fontData = await file.readAsBytes();
-      return pw.Font.ttf(fontData.buffer.asByteData());
+      
+      final fontData = await rootBundle.load(fontPath);
+      return pw.Font.ttf(fontData);
     } catch (e) {
       print("Failed to load custom font $lang: $e. Falling back to Helvetica.");
       return pw.Font.helvetica();
@@ -73,6 +53,7 @@ class ReceiptPdfGenerator {
   static Future<Uint8List> generateReceiptPdf(DonationModel donation, DonorModel donor, String language) async {
     final pdf = pw.Document();
     final font = await _loadFont(language);
+    final englishFont = await _loadFont("english");
 
     // Dictionary of translations
     final translations = {
@@ -183,7 +164,7 @@ class ReceiptPdfGenerator {
                   alignment: pw.Alignment.center,
                   child: pw.Text(
                     labels["slogan"]!,
-                    style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900),
+                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900),
                   ),
                 ),
                 pw.SizedBox(height: 4),
@@ -205,7 +186,7 @@ class ReceiptPdfGenerator {
                       padding: const pw.EdgeInsets.all(2),
                       child: pw.Text(
                         "SEAL",
-                        style: pw.TextStyle(font: font, fontSize: 8, color: PdfColors.red800, fontWeight: pw.FontWeight.bold),
+                        style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, color: PdfColors.red800, fontWeight: pw.FontWeight.bold),
                         textAlign: pw.TextAlign.center,
                       ),
                     ),
@@ -216,17 +197,17 @@ class ReceiptPdfGenerator {
                         children: [
                           pw.Text(
                             labels["title"]!,
-                            style: pw.TextStyle(font: font, fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red900),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red900),
                             textAlign: pw.TextAlign.center,
                           ),
                           pw.Text(
                             labels["regNo"]!,
-                            style: pw.TextStyle(font: font, fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700),
                             textAlign: pw.TextAlign.center,
                           ),
                           pw.Text(
                             labels["cO"]!,
-                            style: pw.TextStyle(font: font, fontSize: 7, color: PdfColors.grey800),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, color: PdfColors.grey800),
                             textAlign: pw.TextAlign.center,
                           ),
                         ],
@@ -244,11 +225,11 @@ class ReceiptPdfGenerator {
                         children: [
                           pw.Text(
                             "Deduction u/s 80G",
-                            style: pw.TextStyle(font: font, fontSize: 7, fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, fontWeight: pw.FontWeight.bold),
                           ),
                           pw.Text(
                             "PAN : AAGTS1081B",
-                            style: pw.TextStyle(font: font, fontSize: 7, fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, fontWeight: pw.FontWeight.bold),
                           ),
                         ],
                       ),
@@ -265,11 +246,11 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           "${labels["receiptNo"]!}: ",
-                          style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                         pw.Text(
                           formattedRecNo,
-                          style: pw.TextStyle(font: font, fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
                         ),
                       ],
                     ),
@@ -277,11 +258,11 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           "${labels["date"]!} ",
-                          style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                         pw.Text(
                           dateStr,
-                          style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                       ],
                     ),
@@ -294,7 +275,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       "${labels["donorName"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -304,7 +285,7 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           donor.fullName,
-                          style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
@@ -317,7 +298,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       "${labels["village"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -327,14 +308,14 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           nativeVillage,
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
                     pw.SizedBox(width: 20),
                     pw.Text(
                       "${labels["railway"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -344,7 +325,7 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           station,
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
@@ -368,11 +349,11 @@ class ReceiptPdfGenerator {
                         children: [
                           pw.Text(
                             "₹ ",
-                            style: pw.TextStyle(font: font, fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                           ),
                           pw.Text(
                             donation.amount.toStringAsFixed(2),
-                            style: pw.TextStyle(font: font, fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                           ),
                         ],
                       ),
@@ -382,7 +363,7 @@ class ReceiptPdfGenerator {
                     // Amount in Words
                     pw.Text(
                       "${labels["rupeesInWords"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -392,7 +373,7 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           _numberToWords(donation.amount, language),
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
@@ -405,7 +386,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       "${labels["modeNo"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -415,7 +396,7 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           transactionDetails,
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
@@ -427,7 +408,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       "${labels["bank"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -437,14 +418,14 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           bankName.isNotEmpty ? bankName : "-",
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
                     ),
                     pw.SizedBox(width: 8),
                     pw.Text(
                       labels["acceptedSuffix"]!,
-                      style: pw.TextStyle(font: font, fontSize: 9, color: PdfColors.grey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, color: PdfColors.grey800),
                     ),
                   ],
                 ),
@@ -456,7 +437,7 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Text(
                       "${labels["detail"]!}: ",
-                      style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800),
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
                     ),
                     pw.Expanded(
                       child: pw.Container(
@@ -466,7 +447,7 @@ class ReceiptPdfGenerator {
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
                           donation.purpose,
-                          style: pw.TextStyle(font: font, fontSize: 10),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10),
                         ),
                       ),
                     ),
@@ -484,7 +465,7 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           labels["coop"]!,
-                          style: pw.TextStyle(font: font, fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
                         ),
                       ],
                     ),
@@ -500,7 +481,7 @@ class ReceiptPdfGenerator {
                         pw.SizedBox(height: 4),
                         pw.Text(
                           labels["treasurer"]!,
-                          style: pw.TextStyle(font: font, fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
                         ),
                       ],
                     ),
@@ -509,7 +490,7 @@ class ReceiptPdfGenerator {
                       children: [
                         pw.Text(
                           receivedBy,
-                          style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                         ),
                         pw.Container(
                           width: 80,
@@ -520,7 +501,7 @@ class ReceiptPdfGenerator {
                         pw.SizedBox(height: 4),
                         pw.Text(
                           labels["receiver"]!,
-                          style: pw.TextStyle(font: font, fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
                         ),
                       ],
                     ),
