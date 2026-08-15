@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../constants/colors.dart';
 import '../../../models/donor.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/donor_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
@@ -19,43 +21,46 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _amountController;
-  late TextEditingController _customPurposeController;
+  late TextEditingController _detailedDescriptionController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
+  
+  // Conditional payment controllers
+  late TextEditingController _bankNameController;
   late TextEditingController _txnIdController;
   late TextEditingController _chequeNoController;
-  late TextEditingController _accountNoController;
-  late TextEditingController _ifscController;
+  DateTime _transactionDate = DateTime.now();
 
   String _paymentMode = "Cash";
   final List<String> _modes = ["Cash", "UPI", "Bank Transfer", "Cheque"];
 
-  String _selectedPurpose = "Education";
-  final List<String> _purposes = ["Education", "Marriage", "Death", "Birth", "Other"];
+  String _purpose = "General";
+  final List<String> _purposes = ["Marriage", "Death", "Birthday", "General", "Other"];
+
+  String? _receivedBy;
 
   @override
   void initState() {
     super.initState();
     _amountController = TextEditingController();
-    _customPurposeController = TextEditingController();
+    _detailedDescriptionController = TextEditingController();
     _phoneController = TextEditingController(text: widget.donor.mobile);
     _emailController = TextEditingController(text: widget.donor.email ?? "");
+    
+    _bankNameController = TextEditingController();
     _txnIdController = TextEditingController();
     _chequeNoController = TextEditingController();
-    _accountNoController = TextEditingController();
-    _ifscController = TextEditingController();
   }
 
   @override
   void dispose() {
     _amountController.dispose();
-    _customPurposeController.dispose();
+    _detailedDescriptionController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _bankNameController.dispose();
     _txnIdController.dispose();
     _chequeNoController.dispose();
-    _accountNoController.dispose();
-    _ifscController.dispose();
     super.dispose();
   }
 
@@ -72,22 +77,23 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
       return;
     }
 
-    final purpose = _selectedPurpose == "Other" 
-        ? _customPurposeController.text.trim() 
-        : _selectedPurpose;
+    // Combine purpose dropdown and detailed description
+    final detailedDesc = _detailedDescriptionController.text.trim();
+    final purposeVal = detailedDesc.isNotEmpty ? "$_purpose - $detailedDesc" : _purpose;
 
     bool success = await donorProvider.addDonation(
       donorId: widget.donor.id ?? '',
       fullName: widget.donor.fullName,
       amount: amt,
       mode: _paymentMode,
-      purpose: purpose,
+      purpose: purposeVal,
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
-      transactionId: _txnIdController.text.trim(),
-      chequeNumber: _chequeNoController.text.trim(),
-      accountNumber: _accountNoController.text.trim(),
-      ifsc: _ifscController.text.trim(),
+      transactionId: (_paymentMode == "UPI" || _paymentMode == "Bank Transfer") ? _txnIdController.text.trim() : null,
+      chequeNumber: (_paymentMode == "Cheque") ? _chequeNoController.text.trim() : null,
+      accountNumber: (_paymentMode != "Cash") ? _bankNameController.text.trim() : null, // Bank name in accountNumber
+      ifsc: (_paymentMode != "Cash") ? _receivedBy : null, // Payment received by in ifsc
+      date: _transactionDate,
     );
 
     if (success) {
@@ -118,6 +124,18 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
   @override
   Widget build(BuildContext context) {
     final donorProvider = Provider.of<DonorProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    
+    // Prepare dynamic received-by list containing standard names + current logged in user
+    final List<String> receivers = ["K. A. Vaghela", "Nimeshbhai Parmar", "Rameshbhai Patel"];
+    final currentUsername = authProvider.currentUser?.username;
+    if (currentUsername != null && !receivers.contains(currentUsername)) {
+      receivers.add(currentUsername);
+    }
+    
+    if (_receivedBy == null && receivers.isNotEmpty) {
+      _receivedBy = receivers[0];
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -171,96 +189,108 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Purpose Dropdown
+              const Text(
+                "Purpose of Donation *",
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _purpose,
+                  dropdownColor: AppColors.surface,
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  items: _purposes.map((String pur) {
+                    return DropdownMenuItem<String>(
+                      value: pur,
+                      child: Text(pur),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _purpose = val;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Detailed Description (500 char limit)
+              CustomTextField(
+                controller: _detailedDescriptionController,
+                label: "Detailed Description (Max 500 characters) *",
+                prefixIcon: Icons.description_rounded,
+                maxLines: 3,
+                maxLength: 500,
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? "Detailed Description is required"
+                    : null,
+              ),
+              const SizedBox(height: 16),
+
               // Mode Selection Dropdown
               const Text("Payment Mode *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.transparent),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _paymentMode,
-                    dropdownColor: AppColors.surface,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                    isExpanded: true,
-                    items: _modes.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setState(() {
-                        _paymentMode = newValue!;
-                      });
-                    },
-                  ),
+                child: DropdownButtonFormField<String>(
+                  value: _paymentMode,
+                  dropdownColor: AppColors.surface,
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  items: _modes.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _paymentMode = newValue!;
+                    });
+                  },
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Purpose of Donation Dropdown
-              const Text(
-                "Purpose of Donation *",
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.transparent),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedPurpose,
-                    dropdownColor: AppColors.surface,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                    isExpanded: true,
-                    items: _purposes.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setState(() {
-                        _selectedPurpose = newValue!;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              if (_selectedPurpose == "Other") ...[
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _customPurposeController,
-                  label: "Describe custom purpose *",
-                  prefixIcon: Icons.edit_note_rounded,
-                  validator: (val) => _selectedPurpose == "Other" && (val == null || val.trim().isEmpty)
-                      ? "Custom purpose description is required"
-                      : null,
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // Conditional Fields based on mode
+              // Conditional Payment Fields
               if (_paymentMode == "UPI" || _paymentMode == "Bank Transfer") ...[
+                CustomTextField(
+                  controller: _bankNameController,
+                  label: "Bank Name *",
+                  prefixIcon: Icons.account_balance_rounded,
+                  validator: (val) => val == null || val.trim().isEmpty ? "Bank Name is required" : null,
+                ),
+                const SizedBox(height: 16),
                 CustomTextField(
                   controller: _txnIdController,
                   label: "Transaction ID / Reference Number *",
                   prefixIcon: Icons.receipt_long_rounded,
-                  validator: (val) => val == null || val.trim().isEmpty ? "Transaction ID is required for digital payments" : null,
+                  validator: (val) => val == null || val.trim().isEmpty ? "Transaction ID is required" : null,
                 ),
                 const SizedBox(height: 16),
               ],
 
               if (_paymentMode == "Cheque") ...[
+                CustomTextField(
+                  controller: _bankNameController,
+                  label: "Bank Name *",
+                  prefixIcon: Icons.account_balance_rounded,
+                  validator: (val) => val == null || val.trim().isEmpty ? "Bank Name is required" : null,
+                ),
+                const SizedBox(height: 16),
                 CustomTextField(
                   controller: _chequeNoController,
                   label: "Cheque Number *",
@@ -269,17 +299,64 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
                   validator: (val) => val == null || val.trim().isEmpty ? "Cheque Number is required" : null,
                 ),
                 const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _accountNoController,
-                  label: "Account Number",
-                  prefixIcon: Icons.account_balance,
-                  keyboardType: TextInputType.number,
+              ],
+
+              if (_paymentMode != "Cash") ...[
+                // Transaction Date selector
+                const Text("Transaction Date *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 6),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    final selected = await showDatePicker(
+                      context: context,
+                      initialDate: _transactionDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (selected != null) {
+                      setState(() {
+                        _transactionDate = selected;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 18),
+                  label: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(DateFormat('dd-MMM-yyyy').format(_transactionDate)),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _ifscController,
-                  label: "IFSC Code",
-                  prefixIcon: Icons.domain,
+
+                // Received By Dropdown
+                const Text("Payment Received By *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    value: _receivedBy,
+                    dropdownColor: AppColors.surface,
+                    decoration: const InputDecoration(border: InputBorder.none),
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                    items: receivers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _receivedBy = val;
+                        });
+                      }
+                    },
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],

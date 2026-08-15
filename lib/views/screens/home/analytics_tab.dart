@@ -18,13 +18,29 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
   int? touchedBarIndex;
   int? touchedDonorBarIndex;
   String _selectedYear = "All Time";
+  String _selectedMonth = "All";
+  String _selectedPurpose = "All";
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DonorProvider>(context, listen: false).fetchAllDonors();
+      final donorProvider = Provider.of<DonorProvider>(context, listen: false);
+      donorProvider.fetchAllDonors();
+      donorProvider.fetchAnalyticsStats(
+        year: _selectedYear,
+        month: _selectedMonth,
+        purpose: _selectedPurpose,
+      );
     });
+  }
+
+  void _fetchStats() {
+    Provider.of<DonorProvider>(context, listen: false).fetchAnalyticsStats(
+      year: _selectedYear,
+      month: _selectedMonth,
+      purpose: _selectedPurpose,
+    );
   }
 
   @override
@@ -33,7 +49,14 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     final donors = donorProvider.donors;
 
     return RefreshIndicator(
-      onRefresh: () => donorProvider.fetchAllDonors(),
+      onRefresh: () async {
+        await donorProvider.fetchAllDonors();
+        await donorProvider.fetchAnalyticsStats(
+          year: _selectedYear,
+          month: _selectedMonth,
+          purpose: _selectedPurpose,
+        );
+      },
       color: AppColors.primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -44,7 +67,11 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
   }
 
   Widget _buildAnalyticsContent(BuildContext context, DonorProvider donorProvider, List<DonorModel> donors) {
-    if (donorProvider.isDonorsLoading && donors.isEmpty) {
+    final analyticsStats = donorProvider.analyticsStats;
+
+    // Show loading spinner if stats are loading and we have no previous data
+    final isLoading = donorProvider.isAnalyticsLoading || (donorProvider.isDonorsLoading && donors.isEmpty);
+    if (isLoading && analyticsStats.isEmpty) {
       return SizedBox(
         height: MediaQuery.of(context).size.height - 200,
         child: const Center(
@@ -65,11 +92,17 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       );
     }
 
-    // Extract unique years from donor donations dynamically
+    // Extract unique years from donor donations dynamically to populate dropdown options
     Set<int> yearsSet = {};
+    Set<String> purposesSet = {"All"};
     for (var d in donors) {
       for (var donation in d.donations) {
         yearsSet.add(donation.date.year);
+        if (donation.purpose.trim().isNotEmpty) {
+          String purpose = donation.purpose.trim();
+          purpose = purpose[0].toUpperCase() + purpose.substring(1);
+          purposesSet.add(purpose);
+        }
       }
     }
     List<String> yearOptions = ["All Time"];
@@ -82,84 +115,73 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       }
     }
 
-    // Parse the selected year filter
-    int? filterYear;
-    if (_selectedYear != "All Time") {
-      final regex = RegExp(r'\d+');
-      final match = regex.firstMatch(_selectedYear);
-      if (match != null) {
-        filterYear = int.tryParse(match.group(0)!);
+    List<String> purposeOptions = purposesSet.toList()..sort();
+    List<String> monthOptions = [
+      "All",
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+
+    // --- Parse Backend Analytics Data ---
+    final double totalAmountCollected = (analyticsStats['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final int activeDonorsCount = (analyticsStats['totalDonorsDonated'] ?? 0) as int;
+
+    // Parse purpose map
+    Map<String, double> purposeMap = {};
+    if (analyticsStats['purposes'] != null) {
+      for (var item in analyticsStats['purposes']) {
+        final String name = item['name'] ?? 'General';
+        final double amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
+        if (amount > 0) {
+          final formattedName = name.trim().isNotEmpty 
+              ? name[0].toUpperCase() + name.substring(1) 
+              : "General";
+          purposeMap[formattedName] = (purposeMap[formattedName] ?? 0.0) + amount;
+        }
       }
     }
 
-    // --- Dynamic Data Aggregations ---
+    // Parse monthly stats list
+    final List monthlyStatsList = List.from(analyticsStats['monthlyStats'] ?? []);
+    // Sort chronological: sortKey ascending (older to newer)
+    monthlyStatsList.sort((a, b) => ((a['sortKey'] ?? 0) as num).compareTo((b['sortKey'] ?? 0) as num));
 
-    double totalAmountCollected = 0.0;
+    // Calculate total donations count (sum of transaction count in all months)
     int totalDonationsCount = 0;
-    Set<String> uniqueDonorsSet = {};
-    Map<String, double> purposeMap = {};
-    Map<String, double> monthlyMap = {}; // Key: "yyyy-MM" (for sorting), Value: total amount
-    Map<String, Set<String>> monthlyDonorsMap = {}; // Key: "yyyy-MM", Value: Set of donor IDs
-
-    for (var donor in donors) {
-      bool hasDonated = false;
-      for (var donation in donor.donations) {
-        if (filterYear != null && donation.date.year != filterYear) {
-          continue;
-        }
-        hasDonated = true;
-        totalAmountCollected += donation.amount;
-        totalDonationsCount++;
-
-        // Purpose grouping
-        String purpose = donation.purpose.trim();
-        if (purpose.isEmpty) purpose = "General";
-        // Capitalize first letter
-        purpose = purpose[0].toUpperCase() + purpose.substring(1);
-        purposeMap[purpose] = (purposeMap[purpose] ?? 0.0) + donation.amount;
-
-        // Monthly grouping
-        String yearMonth = DateFormat('yyyy-MM').format(donation.date);
-        monthlyMap[yearMonth] = (monthlyMap[yearMonth] ?? 0.0) + donation.amount;
-
-        if (monthlyDonorsMap[yearMonth] == null) {
-          monthlyDonorsMap[yearMonth] = {};
-        }
-        monthlyDonorsMap[yearMonth]!.add(donor.id ?? donor.mobile);
-      }
-      if (hasDonated) {
-        uniqueDonorsSet.add(donor.id ?? donor.mobile);
-      }
+    for (var item in monthlyStatsList) {
+      totalDonationsCount += ((item['count'] ?? 0) as num).toInt();
     }
 
     final double avgDonation = totalDonationsCount > 0 ? (totalAmountCollected / totalDonationsCount) : 0.0;
-    final int activeDonorsCount = uniqueDonorsSet.length;
-
-    // Sort Monthly maps by date key
-    List<String> sortedMonths = monthlyMap.keys.toList()..sort();
-    // Only display last 6 months to avoid clutter
-    if (sortedMonths.length > 6) {
-      sortedMonths = sortedMonths.sublist(sortedMonths.length - 6);
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Year Filter Dropdown Card
+        // Year, Month, Purpose Filters Container
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 20),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Row(
                 children: [
-                  Icon(Icons.calendar_month_rounded, color: AppColors.primary, size: 20),
+                  Icon(Icons.filter_alt_rounded, color: AppColors.primary, size: 20),
                   SizedBox(width: 8),
                   Text(
                     "Filter Analytics",
@@ -171,30 +193,76 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                   ),
                 ],
               ),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: yearOptions.contains(_selectedYear) ? _selectedYear : "All Time",
-                  dropdownColor: AppColors.surface,
-                  style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 14),
-                  icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.accent),
-                  items: yearOptions.map((String option) {
-                    return DropdownMenuItem<String>(
-                      value: option,
-                      child: Text(option),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      if (val != null) {
-                        _selectedYear = val;
-                      }
-                    });
-                  },
-                ),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      // Year Filter Dropdown
+                      SizedBox(
+                        width: (constraints.maxWidth - 24) / 3 > 100 ? (constraints.maxWidth - 24) / 3 : constraints.maxWidth,
+                        child: _buildFilterDropdown(
+                          label: "Year",
+                          value: _selectedYear,
+                          items: yearOptions,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedYear = val;
+                              });
+                              _fetchStats();
+                            }
+                          },
+                        ),
+                      ),
+                      // Month Filter Dropdown
+                      SizedBox(
+                        width: (constraints.maxWidth - 24) / 3 > 100 ? (constraints.maxWidth - 24) / 3 : constraints.maxWidth,
+                        child: _buildFilterDropdown(
+                          label: "Month",
+                          value: _selectedMonth,
+                          items: monthOptions,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedMonth = val;
+                              });
+                              _fetchStats();
+                            }
+                          },
+                        ),
+                      ),
+                      // Purpose Filter Dropdown
+                      SizedBox(
+                        width: (constraints.maxWidth - 24) / 3 > 100 ? (constraints.maxWidth - 24) / 3 : constraints.maxWidth,
+                        child: _buildFilterDropdown(
+                          label: "Description",
+                          value: _selectedPurpose,
+                          items: purposeOptions,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedPurpose = val;
+                              });
+                              _fetchStats();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
         ),
+
+        if (donorProvider.isAnalyticsLoading) ...[
+          const LinearProgressIndicator(color: AppColors.primary, minHeight: 2),
+          const SizedBox(height: 8),
+        ],
 
         // KPI Summary Grid
         GridView.count(
@@ -233,10 +301,10 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
         ),
         const SizedBox(height: 24),
 
-        // Purpose Wise Collection Graph (Pie Chart)
+        // Description Wise Collection Graph (Pie Chart)
         _buildChartCard(
-          title: "Purpose-Wise Distribution",
-          subtitle: "Total donation share by program/purpose",
+          title: "Description-Wise Distribution",
+          subtitle: "Total donation share by description",
           child: _buildPurposePieChart(purposeMap),
         ),
         const SizedBox(height: 16),
@@ -245,17 +313,71 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
         _buildChartCard(
           title: "Monthly Collections",
           subtitle: "Total collection amount (₹) by month",
-          child: _buildMonthlyBarChart(sortedMonths, monthlyMap),
+          child: _buildMonthlyBarChart(monthlyStatsList),
         ),
         const SizedBox(height: 16),
 
         // Number of People Donated Chart (Bar Chart)
         _buildChartCard(
-          title: "Donor Participation",
-          subtitle: "Number of unique people who donated by month",
-          child: _buildMonthlyDonorsChart(sortedMonths, monthlyDonorsMap),
+          title: "Donation Frequency",
+          subtitle: "Number of donations by month",
+          child: _buildMonthlyDonationsChart(monthlyStatsList),
         ),
         const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildFilterDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: items.contains(value) ? value : items.first,
+              dropdownColor: AppColors.surface,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary, size: 20),
+              items: items.map((String option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(
+                    option,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -342,11 +464,9 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     );
   }
 
-  // --- Chart Builders ---
-
   Widget _buildPurposePieChart(Map<String, double> purposeMap) {
     if (purposeMap.isEmpty) {
-      return const Center(child: Text("No purpose-wise data", style: TextStyle(color: AppColors.textSecondary)));
+      return const Center(child: Text("No description-wise data", style: TextStyle(color: AppColors.textSecondary)));
     }
 
     final double totalVal = purposeMap.values.fold(0.0, (sum, val) => sum + val);
@@ -420,7 +540,6 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           ),
         ),
         const SizedBox(width: 12),
-        // Custom Legend
         Expanded(
           flex: 5,
           child: SingleChildScrollView(
@@ -442,7 +561,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                           "$purpose (₹${NumberFormat('#,##,###').format(amt)})",
                           style: TextStyle(
                             color: i == touchedPieIndex ? AppColors.textPrimary : AppColors.textSecondary,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: i == touchedPieIndex ? FontWeight.bold : FontWeight.normal,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -459,17 +578,21 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     );
   }
 
-  Widget _buildMonthlyBarChart(List<String> sortedMonths, Map<String, double> monthlyMap) {
-    if (sortedMonths.isEmpty) {
+  Widget _buildMonthlyBarChart(List monthlyStatsList) {
+    if (monthlyStatsList.isEmpty) {
       return const Center(child: Text("No monthly data", style: TextStyle(color: AppColors.textSecondary)));
     }
 
     double maxVal = 1000;
     List<BarChartGroupData> barGroups = [];
 
-    for (int i = 0; i < sortedMonths.length; i++) {
-      final monthKey = sortedMonths[i];
-      final amount = monthlyMap[monthKey] ?? 0.0;
+    final displayList = monthlyStatsList.length > 6 
+        ? monthlyStatsList.sublist(monthlyStatsList.length - 6) 
+        : monthlyStatsList;
+
+    for (int i = 0; i < displayList.length; i++) {
+      final stat = displayList[i];
+      final amount = (stat['amount'] as num?)?.toDouble() ?? 0.0;
       if (amount > maxVal) maxVal = amount;
 
       final isTouched = i == touchedBarIndex;
@@ -517,11 +640,10 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
             getTooltipColor: (_) => AppColors.surface,
             tooltipBorder: const BorderSide(color: AppColors.border),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final monthKey = sortedMonths[group.x];
-              final date = DateFormat('yyyy-MM').parse(monthKey);
-              final displayDate = DateFormat('MMM yyyy').format(date);
+              final stat = displayList[group.x];
+              final String monthLabel = stat['month'] ?? '';
               return BarTooltipItem(
-                "$displayDate\n",
+                "$monthLabel\n",
                 const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
                 children: [
                   TextSpan(
@@ -540,14 +662,25 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
               showTitles: true,
               getTitlesWidget: (double value, TitleMeta meta) {
                 int index = value.toInt();
-                if (index >= 0 && index < sortedMonths.length) {
-                  final monthKey = sortedMonths[index];
-                  final date = DateFormat('yyyy-MM').parse(monthKey);
-                  final displayDate = DateFormat('MMM').format(date);
+                if (index >= 0 && index < displayList.length) {
+                  final stat = displayList[index];
+                  final String monthLabel = stat['month'] ?? '';
+                  String shortMonth = monthLabel;
+                  if (monthLabel.isNotEmpty) {
+                    final parts = monthLabel.split(' ');
+                    if (parts.isNotEmpty) {
+                      final monthName = parts[0];
+                      if (monthName.length > 3) {
+                        shortMonth = monthName.substring(0, 3);
+                      } else {
+                        shortMonth = monthName;
+                      }
+                    }
+                  }
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
                     child: Text(
-                      displayDate,
+                      shortMonth,
                       style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
                     ),
                   );
@@ -590,18 +723,22 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     );
   }
 
-  Widget _buildMonthlyDonorsChart(List<String> sortedMonths, Map<String, Set<String>> monthlyDonorsMap) {
-    if (sortedMonths.isEmpty) {
-      return const Center(child: Text("No donor tracking data", style: TextStyle(color: AppColors.textSecondary)));
+  Widget _buildMonthlyDonationsChart(List monthlyStatsList) {
+    if (monthlyStatsList.isEmpty) {
+      return const Center(child: Text("No donation tracking data", style: TextStyle(color: AppColors.textSecondary)));
     }
 
     double maxVal = 10;
     List<BarChartGroupData> barGroups = [];
 
-    for (int i = 0; i < sortedMonths.length; i++) {
-      final monthKey = sortedMonths[i];
-      final donorsCount = (monthlyDonorsMap[monthKey]?.length ?? 0).toDouble();
-      if (donorsCount > maxVal) maxVal = donorsCount;
+    final displayList = monthlyStatsList.length > 6 
+        ? monthlyStatsList.sublist(monthlyStatsList.length - 6) 
+        : monthlyStatsList;
+
+    for (int i = 0; i < displayList.length; i++) {
+      final stat = displayList[i];
+      final donationsCount = ((stat['count'] ?? 0) as num).toDouble();
+      if (donationsCount > maxVal) maxVal = donationsCount;
 
       final isTouched = i == touchedDonorBarIndex;
 
@@ -610,7 +747,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           x: i,
           barRods: [
             BarChartRodData(
-              toY: donorsCount,
+              toY: donationsCount,
               color: isTouched ? AppColors.primary : Colors.orange,
               width: 16,
               borderRadius: const BorderRadius.only(
@@ -648,15 +785,14 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
             getTooltipColor: (_) => AppColors.surface,
             tooltipBorder: const BorderSide(color: AppColors.border),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final monthKey = sortedMonths[group.x];
-              final date = DateFormat('yyyy-MM').parse(monthKey);
-              final displayDate = DateFormat('MMM yyyy').format(date);
+              final stat = displayList[group.x];
+              final String monthLabel = stat['month'] ?? '';
               return BarTooltipItem(
-                "$displayDate\n",
+                "$monthLabel\n",
                 const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
                 children: [
                   TextSpan(
-                    text: "${rod.toY.toInt()} Unique Donors",
+                    text: "${rod.toY.toInt()} Donations",
                     style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -671,14 +807,25 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
               showTitles: true,
               getTitlesWidget: (double value, TitleMeta meta) {
                 int index = value.toInt();
-                if (index >= 0 && index < sortedMonths.length) {
-                  final monthKey = sortedMonths[index];
-                  final date = DateFormat('yyyy-MM').parse(monthKey);
-                  final displayDate = DateFormat('MMM').format(date);
+                if (index >= 0 && index < displayList.length) {
+                  final stat = displayList[index];
+                  final String monthLabel = stat['month'] ?? '';
+                  String shortMonth = monthLabel;
+                  if (monthLabel.isNotEmpty) {
+                    final parts = monthLabel.split(' ');
+                    if (parts.isNotEmpty) {
+                      final monthName = parts[0];
+                      if (monthName.length > 3) {
+                        shortMonth = monthName.substring(0, 3);
+                      } else {
+                        shortMonth = monthName;
+                      }
+                    }
+                  }
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
                     child: Text(
-                      displayDate,
+                      shortMonth,
                       style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
                     ),
                   );
@@ -692,7 +839,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
               showTitles: true,
               reservedSize: 30,
               getTitlesWidget: (value, meta) {
-                if (value % 5 != 0) return const SizedBox.shrink(); // Show every 5 increments
+                if (value % 5 != 0) return const SizedBox.shrink();
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
                   child: Text(

@@ -9,17 +9,21 @@ class DonorProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _isStatsLoading = false;
   bool _isDonorsLoading = false;
+  bool _isAnalyticsLoading = false;
   List<DonorModel> _donors = [];
   DonorModel? _selectedDonor;
   Map<String, dynamic> _stats = {};
+  Map<String, dynamic> _analyticsStats = {};
   String? _errorMessage;
 
-  bool get isLoading => _isLoading || _isStatsLoading || _isDonorsLoading;
+  bool get isLoading => _isLoading || _isStatsLoading || _isDonorsLoading || _isAnalyticsLoading;
   bool get isStatsLoading => _isStatsLoading;
   bool get isDonorsLoading => _isDonorsLoading;
+  bool get isAnalyticsLoading => _isAnalyticsLoading;
   List<DonorModel> get donors => _donors;
   DonorModel? get selectedDonor => _selectedDonor;
   Map<String, dynamic> get stats => _stats;
+  Map<String, dynamic> get analyticsStats => _analyticsStats;
   String? get errorMessage => _errorMessage;
 
   final _api = ApiService();
@@ -258,6 +262,7 @@ class DonorProvider with ChangeNotifier {
     String? chequeNumber,
     String? accountNumber,
     String? ifsc,
+    DateTime? date,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -278,6 +283,7 @@ class DonorProvider with ChangeNotifier {
           'chequeNumber': chequeNumber,
           'accountNumber': accountNumber,
           'ifsc': ifsc,
+          'date': date?.toIso8601String(),
         },
       );
 
@@ -313,6 +319,47 @@ class DonorProvider with ChangeNotifier {
       _errorMessage = 'Error loading dashboard data';
     } finally {
       _isStatsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchAnalyticsStats({String? year, String? month, String? purpose}) async {
+    _isAnalyticsLoading = true;
+    _errorMessage = null;
+    _analyticsStats = {}; // Reset previous stats
+    notifyListeners();
+
+    try {
+      final Map<String, dynamic> queryParams = {};
+      if (year != null && year != "All Time" && year != "all") {
+        final regex = RegExp(r'\d+');
+        final match = regex.firstMatch(year);
+        if (match != null) {
+          queryParams['year'] = match.group(0);
+        } else {
+          queryParams['year'] = year;
+        }
+      }
+      if (month != null && month != "All" && month != "all") {
+        queryParams['month'] = month.toLowerCase();
+      }
+      if (purpose != null && purpose != "All" && purpose != "all") {
+        queryParams['purpose'] = purpose;
+      }
+
+      final response = await _api.client.get(
+        ApiRoutes.stats,
+        queryParameters: queryParams,
+      );
+      if (response.statusCode == 200) {
+        _analyticsStats = response.data;
+      }
+    } on DioException catch (e) {
+      _errorMessage = e.response?.data['message'] ?? 'Failed to fetch analytics stats';
+    } catch (e) {
+      _errorMessage = 'Error loading analytics data';
+    } finally {
+      _isAnalyticsLoading = false;
       notifyListeners();
     }
   }

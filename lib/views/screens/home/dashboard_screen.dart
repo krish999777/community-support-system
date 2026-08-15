@@ -8,8 +8,7 @@ import '../auth/login_screen.dart';
 import '../donors/donor_list_screen.dart';
 import '../donors/add_donor_screen.dart';
 import '../donors/new_donation_screen.dart';
-import '../pins/pin_management_screen.dart';
-import 'analytics_tab.dart';
+import 'reports_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,7 +18,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -44,9 +42,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        title: Text(
-          _currentIndex == 0 ? "Dashboard" : "Data Analytics",
-          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        title: const Text(
+          "Dashboard",
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -60,37 +58,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-              index: _currentIndex,
-              children: [
-                RefreshIndicator(
-                  onRefresh: () => donorProvider.fetchDashboardStats(),
-                  color: AppColors.primary,
-                  child: _buildDashboardBody(context, authProvider, donorProvider, stats, totalAmount, registeredCount, activeCount),
-                ),
-                const AnalyticsTab(),
-              ],
-            ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: "Dashboard",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics_rounded),
-            label: "Analytics",
-          ),
-        ],
+      body: RefreshIndicator(
+        onRefresh: () => donorProvider.fetchDashboardStats(),
+        color: AppColors.primary,
+        child: _buildDashboardBody(context, authProvider, donorProvider, stats, totalAmount, registeredCount, activeCount),
       ),
     );
   }
@@ -104,6 +75,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     int registeredCount,
     int activeCount,
   ) {
+    double maxMonthlyAmount = 1000.0;
+    if (stats['monthlyStats'] != null && (stats['monthlyStats'] as List).isNotEmpty) {
+      for (var stat in stats['monthlyStats'] as List) {
+        final amt = (stat['amount'] as num?)?.toDouble() ?? 0.0;
+        if (amt > maxMonthlyAmount) {
+          maxMonthlyAmount = amt;
+        }
+      }
+    }
+
     if (donorProvider.isStatsLoading && stats.isEmpty) {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -267,21 +248,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
           ),
           const SizedBox(height: 8),
-          if (authProvider.currentUser?.role == 'admin') ...[
-            _buildMenuTile(
-              "Access Control PINs",
-              "Manage login credentials and authorization keys",
-              Icons.vpn_key_rounded,
-              AppColors.accent,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PinManagementScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-          ],
+          _buildMenuTile(
+            "Reports Generator",
+            "Generate, filter, and export donation CSV reports",
+            Icons.summarize_rounded,
+            Colors.teal,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReportsScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
 
           // Simple Charts Summary if monthly stats exist
           if (stats['monthlyStats'] != null && (stats['monthlyStats'] as List).isNotEmpty) ...[
@@ -305,7 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: totalAmount > 0 ? totalAmount : 1000,
+                  maxY: maxMonthlyAmount * 1.15,
                   barTouchData: BarTouchData(enabled: true),
                   titlesData: FlTitlesData(
                     show: true,
@@ -316,11 +295,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           final list = stats['monthlyStats'] as List;
                           int index = value.toInt();
                           if (index >= 0 && index < list.length) {
-                            String monthStr = list[index]['month'] ?? '';
+                            String monthStr = list[index]['month']?.toString() ?? '';
+                            String displayMonth = monthStr;
+                            if (monthStr.contains(' ')) {
+                              displayMonth = monthStr.substring(0, monthStr.indexOf(' '));
+                            } else if (monthStr.length > 3) {
+                              displayMonth = monthStr.substring(0, 3);
+                            }
                             return SideTitleWidget(
                               axisSide: meta.axisSide,
                               child: Text(
-                                monthStr.substring(0, monthStr.indexOf(' ') > 0 ? monthStr.indexOf(' ') : 3),
+                                displayMonth,
                                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
                               ),
                             );

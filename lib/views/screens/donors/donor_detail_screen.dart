@@ -12,9 +12,11 @@ import '../../../constants/api_routes.dart';
 import '../../../models/donor.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/donor_provider.dart';
+import 'dart:io';
 import '../../../services/api_service.dart';
 import 'add_donor_screen.dart';
 import 'add_donation_screen.dart';
+import '../../../utils/receipt_pdf_generator.dart';
 
 class DonorDetailScreen extends StatefulWidget {
   final String mobile;
@@ -34,27 +36,79 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
     });
   }
 
-  Future<void> _downloadReceipt(String receiptNo) async {
+  Future<String?> _showLanguageDialog() async {
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) {
+        String selectedLang = "gujarati";
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surface,
+              title: const Text("Select Receipt Language", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text("Gujarati (ગુજરાતી)", style: TextStyle(color: AppColors.textPrimary)),
+                    value: "gujarati",
+                    groupValue: selectedLang,
+                    activeColor: AppColors.primary,
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedLang = val);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text("English", style: TextStyle(color: AppColors.textPrimary)),
+                    value: "english",
+                    groupValue: selectedLang,
+                    activeColor: AppColors.primary,
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedLang = val);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+                  onPressed: () => Navigator.pop(ctx, null),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  onPressed: () => Navigator.pop(ctx, selectedLang),
+                  child: const Text("Select", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadReceipt(DonationModel donation, DonorModel donor) async {
+    final lang = await _showLanguageDialog();
+    if (lang == null) return;
+
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Fetching receipt PDF: $receiptNo...")),
+        SnackBar(content: Text("Generating receipt PDF in ${lang.toUpperCase()}...")),
       );
 
-      final dio = ApiService().client;
-      final url = ApiRoutes.downloadReceipt(receiptNo);
+      final pdfBytes = await ReceiptPdfGenerator.generateReceiptPdf(donation, donor, lang);
       
       final dir = await getApplicationDocumentsDirectory();
-      final filePath = "${dir.path}/receipt_$receiptNo.pdf";
+      final formattedRec = ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date).replaceAll('/', '_');
+      final filePath = "${dir.path}/receipt_$formattedRec.pdf";
+      
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes);
 
-      await dio.download(
-        url, 
-        filePath,
-        options: Options(responseType: ResponseType.bytes),
-      );
-
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Downloaded to: receipt_$receiptNo.pdf"),
+          content: Text("Downloaded to: receipt_$formattedRec.pdf"),
           backgroundColor: AppColors.accent,
           action: SnackBarAction(
             label: "OPEN",
@@ -66,37 +120,39 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
         ),
       );
     } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to download PDF: $e"), backgroundColor: AppColors.error),
+        SnackBar(content: Text("Failed to generate PDF: $e"), backgroundColor: AppColors.error),
       );
     }
   }
 
-  Future<void> _shareReceiptWhatsApp(DonationModel donation, String donorName) async {
+  Future<void> _shareReceiptWhatsApp(DonationModel donation, DonorModel donor) async {
+    final lang = await _showLanguageDialog();
+    if (lang == null) return;
+
     try {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Preparing receipt PDF...")),
+        SnackBar(content: Text("Preparing receipt PDF in ${lang.toUpperCase()}...")),
       );
 
-      final dio = ApiService().client;
-      final url = ApiRoutes.downloadReceipt(donation.receiptNo);
+      final pdfBytes = await ReceiptPdfGenerator.generateReceiptPdf(donation, donor, lang);
       
       final dir = await getTemporaryDirectory();
-      final filePath = "${dir.path}/receipt_${donation.receiptNo}.pdf";
-
-      await dio.download(
-        url, 
-        filePath,
-        options: Options(responseType: ResponseType.bytes),
-      );
+      final formattedRec = ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date).replaceAll('/', '_');
+      final filePath = "${dir.path}/receipt_$formattedRec.pdf";
+      
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       await Share.shareXFiles(
         [XFile(filePath)],
-        subject: "Samaj Receipt - ${donation.receiptNo}",
+        subject: "Samaj Receipt - ${ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date)}",
       );
     } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to share PDF: $e"), backgroundColor: AppColors.error),
       );
@@ -206,6 +262,27 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                               "+91 ${donor.mobile}",
                               style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
                             ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddDonationScreen(donor: donor),
+                                  ),
+                                ).then((_) => donorProvider.fetchDonorProfile(widget.mobile));
+                              },
+                              icon: const Icon(Icons.payment_rounded, color: Colors.white, size: 18),
+                              label: const Text("NEW DONATION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                elevation: 2,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -233,21 +310,7 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                     ],
                   ),
                 ),
-      floatingActionButton: donor != null
-          ? FloatingActionButton.extended(
-              backgroundColor: AppColors.accent,
-              icon: const Icon(Icons.payment_rounded, color: Colors.white),
-              label: const Text("NEW DONATION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddDonationScreen(donor: donor),
-                  ),
-                ).then((_) => donorProvider.fetchDonorProfile(widget.mobile));
-              },
-            )
-          : null,
+      floatingActionButton: null,
     );
   }
 
@@ -381,7 +444,7 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 32.0),
       itemCount: donor.donations.length,
       itemBuilder: (context, index) {
         final donation = donor.donations[index];
@@ -403,7 +466,7 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Receipt: ${donation.receiptNo}",
+                      "Receipt: ${ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date)}",
                       style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     Text(
@@ -430,7 +493,7 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Mode / Purpose", style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                        const Text("Mode / Description", style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                         const SizedBox(height: 2),
                         Text(
                           "${donation.mode} / ${donation.purpose}",
@@ -452,13 +515,13 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton.icon(
-                      onPressed: () => _downloadReceipt(donation.receiptNo),
+                      onPressed: () => _downloadReceipt(donation, donor),
                       icon: const Icon(Icons.file_download, size: 16, color: AppColors.primary),
                       label: const Text("RECEIPT PDF", style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
                     TextButton.icon(
-                      onPressed: () => _shareReceiptWhatsApp(donation, donor.fullName),
+                      onPressed: () => _shareReceiptWhatsApp(donation, donor),
                       icon: const Icon(Icons.chat_outlined, size: 16, color: AppColors.accent),
                       label: const Text("WHATSAPP", style: TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),

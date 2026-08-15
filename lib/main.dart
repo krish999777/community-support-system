@@ -6,6 +6,7 @@ import 'providers/donor_provider.dart';
 import 'providers/pin_provider.dart';
 import 'views/screens/auth/login_screen.dart';
 import 'views/screens/home/dashboard_screen.dart';
+import 'views/widgets/session_timeout_listener.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,7 +89,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (auth.isAuthenticated) {
-      return const DashboardScreen();
+      return const SessionTimeoutListener(child: DashboardScreen());
     }
 
     return const LoginScreen();
