@@ -68,9 +68,14 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.circle(pageWidth - 32, pageHeight - 32, 3).fillAndStroke('#FFF', goldColor);
 
     // Branding Logo
-    const logoPath = path.join(__dirname, '../../frontend/public/WhatsApp Image 2026-04-09 at 14.10.43.jpeg');
+    const logoPaths = [
+        path.join(__dirname, '../../frontend/public/WhatsApp Image 2026-04-09 at 14.10.43.jpeg'),
+        path.join(__dirname, '../doner_receipt_app/public/WhatsApp Image 2026-04-09 at 14.10.43.jpeg'),
+        path.join(__dirname, '../public/WhatsApp Image 2026-04-09 at 14.10.43.jpeg')
+    ];
+    const logoPath = logoPaths.find(p => fs.existsSync(p));
     let startY = 60;
-    if (fs.existsSync(logoPath)) {
+    if (logoPath) {
         doc.image(logoPath, (pageWidth - 90) / 2, startY, { fit: [90, 90] });
         startY += 95;
     }

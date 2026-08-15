@@ -21,9 +21,14 @@ app.use('/api/admin', require('../routes/adminroutes'));
 app.use('/api/import', require('../routes/importroutes'));
 
 // ================= SERVE FRONTEND =================
+const fs = require('fs');
 
-// React build copied by Docker to backend/public
-const frontendPath = path.join(__dirname, '../public');
+// React build copied by Docker to backend/public, or committed in doner_receipt_app/public
+let frontendPath = path.join(__dirname, '../public');
+if (!fs.existsSync(path.join(frontendPath, 'index.html'))) {
+  frontendPath = path.join(__dirname, './public');
+}
+
 app.use(express.static(frontendPath));
 
 // For any non-API route, serve React index.html
