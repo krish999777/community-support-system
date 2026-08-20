@@ -96,6 +96,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
+
+    if (donorProvider.errorMessage != null && stats.isEmpty) {
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height - 200,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.error),
+                const SizedBox(height: 12),
+                Text(
+                  donorProvider.errorMessage!,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => donorProvider.fetchDashboardStats(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text("Retry"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       physics: const AlwaysScrollableScrollPhysics(),

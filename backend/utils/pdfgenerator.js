@@ -92,7 +92,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Helvetica')
        .fontSize(10)
        .fillColor('#555555')
-       .text('Office address - 8, Hirvi Chawl, Sane Guruji Marg, Tardeo, Mumbai 400034', 0, startY, { align: 'center', width: pageWidth });
+       .text('Office address - Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai 400034', 0, startY, { align: 'center', width: pageWidth });
     startY += 15;
     doc.text('Samaj PAN : AAGTS1081B', 0, startY, { align: 'center', width: pageWidth });
     startY += 25;
@@ -133,17 +133,21 @@ exports.generateReceiptPDF = (donor, donation) => {
     const refDate = donation.date ? new Date(donation.date) : new Date();
     const formattedDate = refDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
+    // Clean donor full name
+    const rawName = donor.fullName || '-';
+    const cleanDonorName = rawName.replace(/^(Mr\(Shriman\)|Shriman|Srimati|Mr\.|Mrs\.|Shri)\s*/i, '').trim();
+
     const items = [
         ['Receipt No.', donation.receiptNo || '-'],
         ['Date', formattedDate],
-        ['Donor Name', donor.fullName || '-'],
+        ['Mr / Mrs', cleanDonorName],
         ['Email', donation.email || donor.email || 'N/A'],
         ['Phone', donation.phone || donor.mobile || '-'],
         ['Address', donor.address || '-'],
         ['Donor PAN ID', donor.pan || '-'],
         ['Aadhaar', donor.aadhaar || '-'],
         ['Nature of Donation', donation.purpose || 'General'],
-        ['Payment Mode', donation.mode || '-'],
+        ['Payment Mode (UPI / Cash / Check)', donation.mode || '-'],
     ];
 
     if (donation.mode === 'UPI' || donation.mode === 'NEFT') {
@@ -155,7 +159,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     }
 
     const colLeft = 80;
-    const colRight = 240;
+    const colRight = 280;
 
     // Sequential Print Algorithm
     items.forEach(item => {
@@ -199,14 +203,22 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Helvetica-Oblique')
        .fontSize(11)
        .fillColor('#666666')
-       .text(`(Rupees ${wordAmount} Only)`, colLeft, startY);
+       .text(`(${wordAmount} Only)`, colLeft, startY);
+
+    startY += 30;
+
+    // Receiver signature line bottom right
+    doc.font('Helvetica-Bold')
+       .fontSize(11)
+       .fillColor('#333333')
+       .text('Receiver / પ્રાપ્તકર્તા: ____________________', pageWidth - 320, startY, { align: 'right', width: 240 });
 
     // Fine Print Footer (Dynamic Y to prevent overlap)
-    const footerY = Math.max(startY + 40, pageHeight - 85);
-    doc.font('Helvetica')
-       .fontSize(10)
-       .fillColor('#A09F9C')
-       .text('Computer generated receipt. Thank you for your donation.', 0, footerY, { align: 'center', width: pageWidth });
+    const footerY = Math.max(startY + 40, pageHeight - 65);
+    doc.font('Helvetica-Oblique')
+       .fontSize(9)
+       .fillColor('#888888')
+       .text('This is a computer generated donation receipt. Signature not required.', 0, footerY, { align: 'center', width: pageWidth });
 
     doc.end();
   });

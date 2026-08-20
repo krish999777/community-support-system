@@ -35,7 +35,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // Formatting receipt number helper
   String _formatReceiptNo(String rawReceiptNo, DateTime date) {
     if (rawReceiptNo.contains('/')) return rawReceiptNo;
-    return "$rawReceiptNo/${_getFinancialYear(date)}";
+    String cleanNum = rawReceiptNo.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanNum.isEmpty) cleanNum = "1";
+    String padded = cleanNum.length >= 4 ? cleanNum : cleanNum.padLeft(4, '0');
+    return "$padded/${_getFinancialYear(date)}";
   }
 
   @override

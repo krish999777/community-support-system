@@ -32,22 +32,69 @@ class ReceiptPdfGenerator {
     return "$startYear-${endYear.toString().padLeft(2, '0')}";
   }
 
-  // Format Receipt No (e.g. 1234/2026-27)
+  // Format Receipt No (e.g. 0001/2026-27)
   static String formatReceiptNo(String rawReceiptNo, DateTime date) {
     if (rawReceiptNo.contains('/')) return rawReceiptNo;
-    return "$rawReceiptNo/${_getFinancialYear(date)}";
+    String cleanNum = rawReceiptNo.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanNum.isEmpty) cleanNum = "1";
+    String padded = cleanNum.length >= 4 ? cleanNum : cleanNum.padLeft(4, '0');
+    return "$padded/${_getFinancialYear(date)}";
   }
 
-  // Translate amount to Gujarati/Hindi words or fallback English
-  static String _numberToWords(double amount, String lang) {
-    int amt = amount.toInt();
-    if (lang == "gujarati") {
-      return "રૂ. $amt પૂરા";
-    } else if (lang == "hindi") {
-      return "रु. $amt मात्र";
-    } else {
-      return "Rupees $amt Only";
+  // Convert English number to words (crores, lakhs, thousands, hundreds)
+  static String _convertEnglishNumberToWords(int number) {
+    if (number == 0) return "Zero";
+
+    final units = [
+      "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+      "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+      "Seventeen", "Eighteen", "Nineteen"
+    ];
+
+    final tens = [
+      "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+    ];
+
+    String convertLessThanThousand(int n) {
+      if (n == 0) return "";
+      if (n < 20) return units[n];
+      if (n < 100) {
+        return "${tens[n ~/ 10]}${n % 10 != 0 ? " ${units[n % 10]}" : ""}";
+      }
+      return "${units[n ~/ 100]} Hundred${n % 100 != 0 ? " ${convertLessThanThousand(n % 100)}" : ""}";
     }
+
+    String result = "";
+    int crores = number ~/ 10000000;
+    number %= 10000000;
+
+    int lakhs = number ~/ 100000;
+    number %= 100000;
+
+    int thousands = number ~/ 1000;
+    number %= 1000;
+
+    if (crores > 0) {
+      result += "${convertLessThanThousand(crores)} Crore ";
+    }
+    if (lakhs > 0) {
+      result += "${convertLessThanThousand(lakhs)} Lakh ";
+    }
+    if (thousands > 0) {
+      result += "${convertLessThanThousand(thousands)} Thousand ";
+    }
+    if (number > 0) {
+      result += convertLessThanThousand(number);
+    }
+
+    return result.trim();
+  }
+
+  // Translate amount to words
+  static String _numberToWords(double amount, String lang) {
+    int amt = amount.round();
+    String words = _convertEnglishNumberToWords(amt);
+    return "$words Only";
   }
 
   static Future<Uint8List> generateReceiptPdf(DonationModel donation, DonorModel donor, String language) async {
@@ -70,7 +117,7 @@ class ReceiptPdfGenerator {
         "slogan": "।। શ્રી ગણેશાય નમઃ ।।",
         "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ",
         "regNo": "Regd. No. : F 29137",
-        "cO": "C/o રૂમ નં. ૮, હિરવી ચાલ, ગુણકાભાકર કેન્દ્ર ની પાછળ, સાને ગુરૂજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪",
+        "cO": "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪",
         "receiptNo": "રસીદ નંબર",
         "date": "તા.",
         "donorName": "શ્રીમાન / શ્રીમતી",
@@ -78,19 +125,18 @@ class ReceiptPdfGenerator {
         "railway": "હાલ",
         "voluntaryText": "આપના તરફથી સ્વેચ્છાએ દાન રૂપે",
         "rupeesInWords": "અંકે રૂ.",
-        "modeNo": "રોકડા / ચેક નંબર / ટ્રાન્ઝેકશન નંબર",
+        "modeNo": "UPI / Cash / Check",
         "bank": "બેન્ક",
-        "acceptedSuffix": "દ્વારા સ્વીકારવામાં આવે છે. આભાર",
         "detail": "વિગત",
         "coop": "સહકાર બદલ આભાર",
-        "treasurer": "ખજાનચી ની સહી",
-        "receiver": "રકમ સ્વીકારનાર ની સહી",
+        "receiver": "પ્રાપ્તકર્તા",
+        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
       },
       "hindi": {
         "slogan": "।। श्री गणेशाय नमः ।।",
-        "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ", // Samaj name remains same
+        "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ",
         "regNo": "Regd. No. : F 29137",
-        "cO": "C/o रूम नं. ८, हिरवी चाल, गुणकाभाकर केंद्र के पीछे, साने गुरुजी रोड, ताड़देव, मुंबई - ४०० ०३૪",
+        "cO": "C/o. रूम नं. ८, हिरवी चाल, गुणकाभाकर केंद्र के पीछे, साने गुरुजी रोड, ताड़देव, मुंबई - ४०० ०३४",
         "receiptNo": "रसीद संख्या",
         "date": "दिनांक",
         "donorName": "श्रीमान / श्रीमती",
@@ -98,33 +144,31 @@ class ReceiptPdfGenerator {
         "railway": "वर्तमान",
         "voluntaryText": "आपकी ओर से स्वेच्छा से दान स्वरूप",
         "rupeesInWords": "शब्दों में रु.",
-        "modeNo": "नकद / चेक संख्या / लेनदेन संख्या",
+        "modeNo": "UPI / Cash / Check",
         "bank": "बैंक",
-        "acceptedSuffix": "द्वारा स्वीकार किया गया है। धन्यवाद।",
         "detail": "विवरण",
         "coop": "सहयोग के लिए धन्यवाद",
-        "treasurer": "कोषाध्यक्ष के हस्ताक्षर",
-        "receiver": "प्राप्तकर्ता के हस्ताक्षर",
+        "receiver": "प्राप्तकर्ता",
+        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
       },
       "english": {
         "slogan": "|| Shri Ganeshaya Namah ||",
         "title": "Samast Darji Samaj Babariyawad, Mumbai",
         "regNo": "Regd. No. : F 29137",
-        "cO": "C/o Room No. 8, Hirvi Chawl, Behind Gunabhakar Center, Sane Guruji Road, Tardeo, Mumbai - 400034",
+        "cO": "C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai - 400034",
         "receiptNo": "Receipt No",
         "date": "Date",
-        "donorName": "Mr / Mrs / Miss / Dr",
+        "donorName": "Mr / Mrs",
         "village": "Native Village",
         "railway": "Nearest Station",
         "voluntaryText": "Voluntary donation received with thanks from",
         "rupeesInWords": "Amount in Words",
-        "modeNo": "Cash / Cheque / Txn No",
+        "modeNo": "UPI / Cash / Check",
         "bank": "Bank Name",
-        "acceptedSuffix": "is accepted. Thank you.",
         "detail": "Purpose / Description",
         "coop": "Thank you for cooperation",
-        "treasurer": "Treasurer Signature",
-        "receiver": "Receiver Signature",
+        "receiver": "Receiver",
+        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
       }
     };
 
@@ -142,20 +186,24 @@ class ReceiptPdfGenerator {
       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
     );
 
+    // Clean donor full name (remove old Mr(Shriman) / Shriman / Mr. prefixes)
+    String cleanDonorName = donor.fullName
+        .replaceAll(RegExp(r'^(Mr\(Shriman\)|Shriman|Srimati|Mr\.|Mrs\.|Shri)\s*', caseSensitive: false), '')
+        .trim();
+
     // Native Village is stored in address
     final nativeVillage = donor.address ?? "";
     final station = donor.nearestRailwayStation ?? "";
 
-    // Parse bank name (stored in accountNumber) and receiver (stored in ifsc)
+    // Parse bank name (stored in accountNumber)
     final bankName = (donation.mode != "Cash") ? (donation.accountNumber ?? "") : "";
-    final receivedBy = donation.ifsc ?? "K. A. Vaghela";
 
     // Transaction detail text
-    String transactionDetails = "Cash";
+    String transactionDetails = donation.mode;
     if (donation.mode == "Cheque") {
       transactionDetails = "Cheque No: ${donation.chequeNumber ?? ''}";
     } else if (donation.mode == "UPI" || donation.mode == "Bank Transfer") {
-      transactionDetails = "${donation.mode} Ref: ${donation.transactionId ?? ''}";
+      transactionDetails = "UPI/Ref: ${donation.transactionId ?? ''}";
     }
 
     pdf.addPage(
@@ -211,7 +259,7 @@ class ReceiptPdfGenerator {
                       ),
                     ),
 
-                    // Section 80G / PAN Box (excluding "SAMAJ" label)
+                    // Section 80G / PAN Box
                     pw.Container(
                       decoration: pw.BoxDecoration(
                         border: pw.Border.all(color: PdfColors.grey700, width: 1),
@@ -281,7 +329,7 @@ class ReceiptPdfGenerator {
                         ),
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
-                          donor.fullName,
+                          cleanDonorName,
                           style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
@@ -419,11 +467,6 @@ class ReceiptPdfGenerator {
                         ),
                       ),
                     ),
-                    pw.SizedBox(width: 8),
-                    pw.Text(
-                      labels["acceptedSuffix"]!,
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 9, color: PdfColors.grey800),
-                    ),
                   ],
                 ),
                 pw.SizedBox(height: 8),
@@ -450,15 +493,32 @@ class ReceiptPdfGenerator {
                     ),
                   ],
                 ),
-                pw.SizedBox(height: 16),
-
-                // Signatures row removed, showing only thank you / cooperation message
                 pw.Spacer(),
+
+                // Bottom Row: Left Thank You / Right Receiver Signature Field
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      labels["coop"]!,
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
+                    ),
+                    pw.Text(
+                      "${labels["receiver"]!}: ________________",
+                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 8),
+
+                // Disclaimer at bottom center
                 pw.Align(
-                  alignment: pw.Alignment.centerLeft,
+                  alignment: pw.Alignment.center,
                   child: pw.Text(
-                    labels["coop"]!,
-                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
+                    labels["disclaimer"]!,
+                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700),
+                    textAlign: pw.TextAlign.center,
                   ),
                 ),
               ],

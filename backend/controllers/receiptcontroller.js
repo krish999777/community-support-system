@@ -40,7 +40,31 @@ exports.addDonation = async (req, res) => {
       if (email && !donor.email) donor.email = email;
     }
 
-    const receiptNo = 'RCPT-' + Date.now();
+    // Calculate sequential 4-digit receipt number with Financial Year (e.g. 0001/2026-27)
+    const allDonors = await Donor.find({}, 'donations.receiptNo');
+    let maxSeq = 0;
+    allDonors.forEach(d => {
+      if (d.donations) {
+        d.donations.forEach(don => {
+          if (don.receiptNo) {
+            const match = don.receiptNo.match(/^(\d+)/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxSeq) maxSeq = num;
+            }
+          }
+        });
+      }
+    });
+
+    const nextSeq = maxSeq + 1;
+    const padSeq = String(nextSeq).padStart(4, '0');
+    const donationDate = date ? new Date(date) : new Date();
+    const year = donationDate.getFullYear();
+    const month = donationDate.getMonth() + 1;
+    const startYear = month >= 4 ? year : year - 1;
+    const endYearStr = String((startYear + 1) % 100).padStart(2, '0');
+    const receiptNo = `${padSeq}/${startYear}-${endYearStr}`;
     const donationData = {
       amount,
       mode,
@@ -101,7 +125,8 @@ exports.getDonationHistory = async (req, res) => {
 // Get receipt details by receipt number
 exports.getReceiptByNumber = async (req, res) => {
   try {
-    const { receiptNo } = req.params;
+    const rawReceiptNo = req.params.receiptNo || req.params[0] || '';
+    const receiptNo = decodeURIComponent(rawReceiptNo);
     const donor = await Donor.findOne({ 'donations.receiptNo': receiptNo });
     if (!donor) return res.status(404).json({ message: 'Receipt not found' });
 
@@ -123,7 +148,8 @@ exports.getReceiptByNumber = async (req, res) => {
 // Download receipt PDF
 exports.downloadReceipt = async (req, res) => {
   try {
-    const { receiptNo } = req.params;
+    const rawReceiptNo = req.params.receiptNo || req.params[0] || '';
+    const receiptNo = decodeURIComponent(rawReceiptNo);
     const donor = await Donor.findOne({ 'donations.receiptNo': receiptNo });
     if (!donor) return res.status(404).json({ message: 'Receipt not found' });
 
@@ -132,7 +158,8 @@ exports.downloadReceipt = async (req, res) => {
     // Generate PDF natively
     const pdfBuffer = await generateReceiptPDF(donor, receipt);
     res.contentType('application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${receiptNo}.pdf"`);
+    const safeFilename = receiptNo.replace(/\//g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
