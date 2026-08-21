@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart' show TextStyle, TextSpan, TextPainter, TextDirection, FontWeight, Colors, Color;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -22,6 +23,78 @@ class ReceiptPdfGenerator {
     } catch (e) {
       print("Failed to load custom font $lang: $e. Falling back to Helvetica.");
       return pw.Font.helvetica();
+    }
+  }
+
+  // Render shaped Gujarati text as ultra-crisp high-DPI image widget to avoid TTF ligature bugs
+  static Future<pw.Widget> _renderTextWidget(
+    String text, {
+    required double fontSize,
+    required PdfColor pdfColor,
+    bool isBold = false,
+    bool isGujarati = false,
+  }) async {
+    if (!isGujarati) {
+      return pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: pdfColor,
+        ),
+      );
+    }
+
+    Color color = Colors.black;
+    if (pdfColor == PdfColors.orange900) color = const Color(0xFFE65100);
+    else if (pdfColor == PdfColors.red900) color = const Color(0xFFB71C1C);
+    else if (pdfColor == PdfColors.red800) color = const Color(0xFFC62828);
+    else if (pdfColor == PdfColors.blue900) color = const Color(0xFF0D47A1);
+    else if (pdfColor == PdfColors.blueGrey800) color = const Color(0xFF37474F);
+    else if (pdfColor == PdfColors.blueGrey900) color = const Color(0xFF263238);
+    else if (pdfColor == PdfColors.grey800) color = const Color(0xFF424242);
+    else if (pdfColor == PdfColors.grey700) color = const Color(0xFF616161);
+
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontFamily: 'NotoSansGujarati',
+            fontSize: fontSize * 3.0, // 3x scaling for sharp crisp rendering
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: color,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, ui.Offset.zero);
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(
+        textPainter.width.ceil().clamp(1, 4000),
+        textPainter.height.ceil().clamp(1, 4000),
+      );
+      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) throw Exception("Failed to convert image byte data");
+      final memoryImage = pw.MemoryImage(byteData.buffer.asUint8List());
+      return pw.Image(
+        memoryImage,
+        height: fontSize * 1.3,
+        fit: pw.BoxFit.contain,
+      );
+    } catch (e) {
+      print("Text image rendering error: $e");
+      return pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: pdfColor,
+        ),
+      );
     }
   }
 
@@ -90,25 +163,26 @@ class ReceiptPdfGenerator {
     return result.trim();
   }
 
-  // Convert Gujarati number to words
+  // Convert Gujarati number to words with exact 1-99 words mapping
   static String _convertGujaratiNumberToWords(int number) {
     if (number == 0) return "શૂન્ય";
 
-    final units = [
-      "", "એક", "બે", "ત્રણ", "ચાર", "પાંચ", "છ", "સાત", "આઠ", "નવ",
-      "દસ", "અગિયાર", "બાર", "તેર", "ચૌદ", "પંદર", "સોળ", "સત્તર", "અઢાર", "ઓગણીસ", "વીસ"
-    ];
-
-    final tens = [
-      "", "દસ", "વીસ", "ત્રીસ", "ચાલીસ", "પચાસ", "સાઠ", "સિત્તેર", "એંસી", "નેવુ"
+    final onesAndTeens = [
+      "", "એક", "બે", "ત્રણ", "ચાર", "પાંચ", "છ", "સાત", "આઠ", "નવ", "દસ",
+      "અગિયાર", "બાર", "તેર", "ચૌદ", "પંદર", "સોળ", "સત્તર", "અઢાર", "ઓગણીસ", "વીસ",
+      "એકવીસ", "બાવીસ", "તેવીસ", "ચોવીસ", "પચાસ", "છવીસ", "સત્તાવીસ", "અઠ્ઠાવીસ", "ઓગણત્રીસ", "ત્રીસ",
+      "એકત્રીસ", "બત્રીસ", "તેત્રીસ", "ચોત્રીસ", "પાંત્રીસ", "છત્રીસ", "સડત્રીસ", "અડત્રીસ", "ઓગણચાલીસ", "ચાલીસ",
+      "એકતાલીસ", "બેતાલીસ", "તાલીસ", "ચોતાલીસ", "પિસ્તાલીસ", "છેતાલીસ", "સુડતાલીસ", "અડતાલીસ", "ઓગણપચાસ", "પચાસ",
+      "એકાવન", "બાવન", "ત્રેપન", "ચોપન", "પંચાવન", "છપ્પન", "સત્તાવન", "અઠ્ઠાવન", "ઓગણસાઠ", "સાઠ",
+      "એકસઠ", "બાસઠ", "ત્રેસઠ", "ચોસઠ", "પાંસઠ", "છાસઠ", "સડસઠ", "અડસઠ", "ઓગણસિત્તેર", "સિત્તેર",
+      "એકોતેર", "બોતેર", "તોતેર", "ચુમ્મોતેર", "પંચોતેર", "છોતેર", "સત્તોતેર", "અઠ્ઠોતેર", "ઓગણએંસી", "એંસી",
+      "એક્યાસી", "બ્યાસી", "ત્યાસી", "ચોર્યાસી", "પંચાસી", "છ્યાસી", "સત્ત્યાસી", "અઠ્ઠ્યાસી", "નેવ્યાસી", "નેવુ",
+      "એકમાણુ", "બ્રાણુ", "ત્રાણુ", "ચોર્માણુ", "પંચાણુ", "છન્નુ", "સત્તાણુ", "અઠ્ઠાળુ", "નવ્વાણુ"
     ];
 
     String convertLessThanHundred(int n) {
-      if (n <= 20) return units[n];
-      int t = n ~/ 10;
-      int u = n % 10;
-      if (u == 0) return tens[t];
-      return "${tens[t]} ${units[u]}";
+      if (n < onesAndTeens.length) return onesAndTeens[n];
+      return "$n";
     }
 
     String convertLessThanThousand(int n) {
@@ -116,7 +190,7 @@ class ReceiptPdfGenerator {
       if (n < 100) return convertLessThanHundred(n);
       int h = n ~/ 100;
       int rem = n % 100;
-      String hundredStr = "${units[h]} સો";
+      String hundredStr = "${onesAndTeens[h]} સો";
       if (rem == 0) return hundredStr;
       return "$hundredStr ${convertLessThanHundred(rem)}";
     }
@@ -163,6 +237,7 @@ class ReceiptPdfGenerator {
     final pdf = pw.Document();
     final font = await _loadFont(language);
     final englishFont = await _loadFont("english");
+    final bool isGuj = (language == "gujarati");
 
     // Load logo image from assets
     pw.ImageProvider? logoImageProvider;
@@ -173,73 +248,115 @@ class ReceiptPdfGenerator {
       print("Failed to load logo image: $e");
     }
 
-    // Dictionary of translations
-    final translations = {
-      "gujarati": {
-        "slogan": "।। શ્રી ગણેશાય નમઃ ।।",
-        "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ",
-        "regNo": "Regd. No. : F 29137",
-        "cO": "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકાર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪",
-        "receiptNo": "રસીદ નંબર",
-        "date": "તા.",
-        "donorName": "શ્રીમાન / શ્રીમતી",
-        "village": "ગામ",
-        "railway": "હાલ",
-        "voluntaryText": "આપના તરફથી સ્વેચ્છાએ દાન રૂપે",
-        "rupeesInWords": "અંકે રૂ.",
-        "modeNo": "UPI / Cash / Check",
-        "bank": "બેન્ક",
-        "detail": "વિગત",
-        "coop": "સહકાર બદલ આભાર",
-        "receiver": "પ્રાપ્તકર્તા",
-        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
-      },
-      "hindi": {
-        "slogan": "।। श्री गणेशाय नमः ।।",
-        "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ",
-        "regNo": "Regd. No. : F 29137",
-        "cO": "C/o. रूम नं. ८, हिरवी चाल, गुणकाभाकर केंद्र के पीछे, साने गुरुजी रोड, ताड़देव, मुंबई - ४०० ०३४",
-        "receiptNo": "रसीद संख्या",
-        "date": "दिनांक",
-        "donorName": "श्रीमान / श्रीमती",
-        "village": "ग्राम",
-        "railway": "वर्तमान",
-        "voluntaryText": "आपकी ओर से स्वेच्छा से दान स्वरूप",
-        "rupeesInWords": "शब्दों में रु.",
-        "modeNo": "UPI / Cash / Check",
-        "bank": "बैंक",
-        "detail": "विवरण",
-        "coop": "सहयोग के लिए धन्यवाद",
-        "receiver": "प्राप्तकर्ता",
-        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
-      },
-      "english": {
-        "slogan": "|| Shri Ganeshaya Namah ||",
-        "title": "Samast Darji Samaj Babariyawad, Mumbai",
-        "regNo": "Regd. No. : F 29137",
-        "cO": "C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai - 400034",
-        "receiptNo": "Receipt No",
-        "date": "Date",
-        "donorName": "Mr / Mrs",
-        "village": "Native Village",
-        "railway": "Nearest Station",
-        "voluntaryText": "Voluntary donation received with thanks from",
-        "rupeesInWords": "Amount in Words",
-        "modeNo": "UPI / Cash / Check",
-        "bank": "Bank Name",
-        "detail": "Purpose / Description",
-        "coop": "Thank you for cooperation",
-        "receiver": "Receiver",
-        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
-      }
-    };
+    // Pre-render Gujarati text widgets to avoid PDF font shaping bugs
+    final sloganWidget = await _renderTextWidget(
+      isGuj ? "।। શ્રી ગણેશાય નમઃ ।। " : "|| Shri Ganeshaya Namah ||",
+      fontSize: 10,
+      pdfColor: PdfColors.orange900,
+      isBold: true,
+      isGujarati: isGuj,
+    );
 
-    final labels = translations[language] ?? translations["english"]!;
+    final titleWidget = await _renderTextWidget(
+      isGuj ? "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ" : "Samast Darji Samaj Babariyawad, Mumbai",
+      fontSize: 18,
+      pdfColor: PdfColors.red900,
+      isBold: true,
+      isGujarati: isGuj,
+    );
 
-    // Display formatted date
+    final addressWidget = await _renderTextWidget(
+      isGuj
+          ? "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકાર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪"
+          : "C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai - 400034",
+      fontSize: 7,
+      pdfColor: PdfColors.grey800,
+      isGujarati: isGuj,
+    );
+
+    final receiptNoLabelWidget = await _renderTextWidget(
+      isGuj ? "રસીદ નંબર:" : "Receipt No:",
+      fontSize: 11,
+      pdfColor: PdfColors.black,
+      isBold: true,
+      isGujarati: isGuj,
+    );
+
+    final dateLabelWidget = await _renderTextWidget(
+      isGuj ? "તા." : "Date",
+      fontSize: 11,
+      pdfColor: PdfColors.black,
+      isBold: true,
+      isGujarati: isGuj,
+    );
+
+    final donorNameLabelWidget = await _renderTextWidget(
+      isGuj ? "શ્રીમાન / શ્રીમતી:" : "Mr / Mrs:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final villageLabelWidget = await _renderTextWidget(
+      isGuj ? "ગામ:" : "Native Village:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final stationLabelWidget = await _renderTextWidget(
+      isGuj ? "હાલ:" : "Nearest Station:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final rupeesWordsLabelWidget = await _renderTextWidget(
+      isGuj ? "અંકે રૂ.:" : "Amount in Words:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final modeLabelWidget = await _renderTextWidget(
+      "UPI / Cash / Check:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: false,
+    );
+
+    final bankLabelWidget = await _renderTextWidget(
+      isGuj ? "બેન્ક:" : "Bank Name:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final detailLabelWidget = await _renderTextWidget(
+      isGuj ? "વિગત:" : "Purpose / Description:",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey800,
+      isGujarati: isGuj,
+    );
+
+    final coopWidget = await _renderTextWidget(
+      isGuj ? "સહકાર બદલ આભાર" : "Thank you for cooperation",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey900,
+      isBold: true,
+      isGujarati: isGuj,
+    );
+
+    final receiverWidget = await _renderTextWidget(
+      isGuj ? "પ્રાપ્તકર્તા: ________________" : "Receiver: ________________",
+      fontSize: 10,
+      pdfColor: PdfColors.blueGrey900,
+      isBold: true,
+      isGujarati: isGuj,
+    );
+
+    // Format date and receipt number
     final dateStr = DateFormat('dd/MM/yyyy').format(donation.date);
-
-    // Format receipt number
     final formattedRecNo = formatReceiptNo(donation.receiptNo, donation.date);
 
     // Custom receipt border decorations (Blue borders matching photo)
@@ -248,7 +365,7 @@ class ReceiptPdfGenerator {
       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
     );
 
-    // Clean donor full name (remove old Mr(Shriman) / Shriman / Mr. / Srimati prefixes)
+    // Clean donor full name
     String cleanDonorName = donor.fullName
         .replaceAll(RegExp(r'^(Mr\s*\(Shriman\)|Mrs\s*\(Shrimati\)|Miss\s*\(Kumari\)|Shriman|Srimati|Mr\.|Mrs\.|Mr|Mrs|Shri)\s*', caseSensitive: false), '')
         .trim();
@@ -258,20 +375,25 @@ class ReceiptPdfGenerator {
       displayName = "Mr. $cleanDonorName";
     }
 
-    // Native Village is stored in address
     final nativeVillage = donor.address ?? "";
     final station = donor.nearestRailwayStation ?? "";
-
-    // Parse bank name (stored in accountNumber)
     final bankName = (donation.mode != "Cash") ? (donation.accountNumber ?? "") : "";
 
-    // Transaction detail text
     String transactionDetails = donation.mode;
     if (donation.mode == "Cheque") {
       transactionDetails = "Cheque No: ${donation.chequeNumber ?? ''}";
     } else if (donation.mode == "UPI" || donation.mode == "Bank Transfer") {
       transactionDetails = "UPI/Ref: ${donation.transactionId ?? ''}";
     }
+
+    final amountInWordsText = _numberToWords(donation.amount, language);
+    final amountInWordsWidget = await _renderTextWidget(
+      amountInWordsText,
+      fontSize: 10,
+      pdfColor: PdfColors.black,
+      isBold: true,
+      isGujarati: isGuj,
+    );
 
     pdf.addPage(
       pw.Page(
@@ -286,10 +408,7 @@ class ReceiptPdfGenerator {
                 // Header Slogan
                 pw.Align(
                   alignment: pw.Alignment.center,
-                  child: pw.Text(
-                    labels["slogan"]!,
-                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900),
-                  ),
+                  child: sloganWidget,
                 ),
                 pw.SizedBox(height: 4),
 
@@ -298,7 +417,7 @@ class ReceiptPdfGenerator {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // Circular Stamp replaced with Samaj Logo
+                    // Circular Stamp / Samaj Logo
                     logoImageProvider != null
                         ? pw.Image(logoImageProvider, width: 50, height: 50)
                         : pw.Container(width: 50, height: 50),
@@ -307,21 +426,15 @@ class ReceiptPdfGenerator {
                     pw.Expanded(
                       child: pw.Column(
                         children: [
+                          titleWidget,
+                          pw.SizedBox(height: 2),
                           pw.Text(
-                            labels["title"]!,
-                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red900),
-                            textAlign: pw.TextAlign.center,
-                          ),
-                          pw.Text(
-                            labels["regNo"]!,
+                            "Regd. No. : F 29137",
                             style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700),
                             textAlign: pw.TextAlign.center,
                           ),
-                          pw.Text(
-                            labels["cO"]!,
-                            style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, color: PdfColors.grey800),
-                            textAlign: pw.TextAlign.center,
-                          ),
+                          pw.SizedBox(height: 2),
+                          addressWidget,
                         ],
                       ),
                     ),
@@ -356,10 +469,8 @@ class ReceiptPdfGenerator {
                   children: [
                     pw.Row(
                       children: [
-                        pw.Text(
-                          "${labels["receiptNo"]!}: ",
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
-                        ),
+                        receiptNoLabelWidget,
+                        pw.SizedBox(width: 4),
                         pw.Text(
                           formattedRecNo,
                           style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.red800),
@@ -368,10 +479,8 @@ class ReceiptPdfGenerator {
                     ),
                     pw.Row(
                       children: [
-                        pw.Text(
-                          "${labels["date"]!} ",
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
-                        ),
+                        dateLabelWidget,
+                        pw.SizedBox(width: 4),
                         pw.Text(
                           dateStr,
                           style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
@@ -385,10 +494,8 @@ class ReceiptPdfGenerator {
                 // Donor Name Row
                 pw.Row(
                   children: [
-                    pw.Text(
-                      "${labels["donorName"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    donorNameLabelWidget,
+                    pw.SizedBox(width: 6),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -408,10 +515,8 @@ class ReceiptPdfGenerator {
                 // Native Village & Current Station
                 pw.Row(
                   children: [
-                    pw.Text(
-                      "${labels["village"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    villageLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -425,10 +530,8 @@ class ReceiptPdfGenerator {
                       ),
                     ),
                     pw.SizedBox(width: 20),
-                    pw.Text(
-                      "${labels["railway"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    stationLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -473,33 +576,26 @@ class ReceiptPdfGenerator {
                     pw.SizedBox(width: 12),
 
                     // Amount in Words
-                    pw.Text(
-                      "${labels["rupeesInWords"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    rupeesWordsLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
                           border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey500, style: pw.BorderStyle.dashed)),
                         ),
                         padding: const pw.EdgeInsets.only(bottom: 2),
-                        child: pw.Text(
-                          _numberToWords(donation.amount, language),
-                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
-                        ),
+                        child: amountInWordsWidget,
                       ),
                     ),
                   ],
                 ),
                 pw.SizedBox(height: 8),
 
-                // Payment mode / Ref No / Cheque No & Bank Name
+                // Payment mode & Bank Name
                 pw.Row(
                   children: [
-                    pw.Text(
-                      "${labels["modeNo"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    modeLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -518,10 +614,8 @@ class ReceiptPdfGenerator {
 
                 pw.Row(
                   children: [
-                    pw.Text(
-                      "${labels["bank"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    bankLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -542,10 +636,8 @@ class ReceiptPdfGenerator {
                 pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
-                      "${labels["detail"]!}: ",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
-                    ),
+                    detailLabelWidget,
+                    pw.SizedBox(width: 4),
                     pw.Expanded(
                       child: pw.Container(
                         decoration: const pw.BoxDecoration(
@@ -567,14 +659,8 @@ class ReceiptPdfGenerator {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text(
-                      labels["coop"]!,
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
-                    ),
-                    pw.Text(
-                      "${labels["receiver"]!}: ________________",
-                      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
-                    ),
+                    coopWidget,
+                    receiverWidget,
                   ],
                 ),
                 pw.SizedBox(height: 8),
@@ -583,7 +669,7 @@ class ReceiptPdfGenerator {
                 pw.Align(
                   alignment: pw.Alignment.center,
                   child: pw.Text(
-                    labels["disclaimer"]!,
+                    "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
                     style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700),
                     textAlign: pw.TextAlign.center,
                   ),
