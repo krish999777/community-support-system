@@ -186,19 +186,18 @@ class ReceiptPdfGenerator {
     }
 
     // Load pre-rendered Gujarati header image assets
-    final String sloganText = isGuj ? "।। શ્રી ગણેશાય નમઃ ।। " : "";
-    final String titleText = isGuj ? "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ" : "";
-    final String addressText = isGuj ? "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકાર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪" : "";
-    final String receiptNoLabelText = isGuj ? "રસીદ નંબર:" : "Receipt No:";
-    final String dateLabelText = isGuj ? "તા." : "Date";
-    final String donorNameLabelText = isGuj ? "શ્રીમાન / શ્રીમતી:" : "Mr / Mrs:";
-    final String villageLabelText = isGuj ? "ગામ:" : "Native Village:";
-    final String stationLabelText = isGuj ? "હાલ:" : "Nearest Station:";
-    final String rupeesWordsLabelText = isGuj ? "અંકે રૂ.:" : "Amount in Words:";
-    final String modeLabelText = isGuj ? "સહકાર બદલ આભાર" : "Thank you for cooperation";
-    final String receiverLabelText = isGuj ? "પ્રાપ્તકર્તા:" : "Receiver:";
-    final String bankLabelText = isGuj ? "બેન્ક:" : "Bank Name:";
-    final String detailLabelText = isGuj ? "વિગત:" : "Purpose / Description:";
+    final sloganImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/slogan.png") : null;
+    final titleImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/title.png") : null;
+    final addressImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/address.png") : null;
+    final shrimanImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/shriman.png") : null;
+    final vigatImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/vigat.png") : null;
+    final praptkartaImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/praptkarta.png") : null;
+    final ankeImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/anke.png") : null;
+    final rasidNoImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/rasid_no.png") : null;
+    final taImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/ta.png") : null;
+    final gamImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/gam.png") : null;
+    final halImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/hal.png") : null;
+    final coopImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/coop.png") : null;
     // Header Widgets
     final pw.Widget sloganWidget = sloganImg != null
         ? pw.Image(sloganImg, height: 14, fit: pw.BoxFit.contain)
