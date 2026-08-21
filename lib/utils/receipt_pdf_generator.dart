@@ -1,6 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart' show TextStyle, TextSpan, TextPainter, TextDirection, FontWeight, Colors, Color;
+import 'package:flutter/material.dart' show TextStyle, TextSpan, TextPainter, FontWeight, Colors, Color;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -68,7 +68,7 @@ class ReceiptPdfGenerator {
             color: color,
           ),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: ui.TextDirection.ltr,
       );
       textPainter.layout();
       textPainter.paint(canvas, ui.Offset.zero);
