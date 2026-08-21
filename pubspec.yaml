@@ -74,6 +74,7 @@ flutter:
     - assets/fonts/NotoSansDevanagari-Regular.ttf
     - assets/fonts/NotoSans-Regular.ttf
     - assets/logo.jpg
+    - assets/gujarati_headers/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

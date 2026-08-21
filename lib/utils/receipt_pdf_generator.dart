@@ -1,6 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'package:flutter/material.dart' show TextStyle, TextSpan, TextPainter, FontWeight, Colors, Color;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -23,78 +21,6 @@ class ReceiptPdfGenerator {
     } catch (e) {
       print("Failed to load custom font $lang: $e. Falling back to Helvetica.");
       return pw.Font.helvetica();
-    }
-  }
-
-  // Render shaped Gujarati text as ultra-crisp high-DPI image widget to avoid TTF ligature bugs
-  static Future<pw.Widget> _renderTextWidget(
-    String text, {
-    required double fontSize,
-    required PdfColor pdfColor,
-    bool isBold = false,
-    bool isGujarati = false,
-  }) async {
-    if (!isGujarati) {
-      return pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: pdfColor,
-        ),
-      );
-    }
-
-    Color color = Colors.black;
-    if (pdfColor == PdfColors.orange900) color = const Color(0xFFE65100);
-    else if (pdfColor == PdfColors.red900) color = const Color(0xFFB71C1C);
-    else if (pdfColor == PdfColors.red800) color = const Color(0xFFC62828);
-    else if (pdfColor == PdfColors.blue900) color = const Color(0xFF0D47A1);
-    else if (pdfColor == PdfColors.blueGrey800) color = const Color(0xFF37474F);
-    else if (pdfColor == PdfColors.blueGrey900) color = const Color(0xFF263238);
-    else if (pdfColor == PdfColors.grey800) color = const Color(0xFF424242);
-    else if (pdfColor == PdfColors.grey700) color = const Color(0xFF616161);
-
-    try {
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontFamily: 'NotoSansGujarati',
-            fontSize: fontSize * 3.0, // 3x scaling for sharp crisp rendering
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: color,
-          ),
-        ),
-        textDirection: ui.TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, ui.Offset.zero);
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(
-        textPainter.width.ceil().clamp(1, 4000),
-        textPainter.height.ceil().clamp(1, 4000),
-      );
-      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) throw Exception("Failed to convert image byte data");
-      final memoryImage = pw.MemoryImage(byteData.buffer.asUint8List());
-      return pw.Image(
-        memoryImage,
-        height: fontSize * 1.3,
-        fit: pw.BoxFit.contain,
-      );
-    } catch (e) {
-      print("Text image rendering error: $e");
-      return pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: fontSize,
-          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: pdfColor,
-        ),
-      );
     }
   }
 
@@ -233,6 +159,17 @@ class ReceiptPdfGenerator {
     }
   }
 
+  // Load image asset as pw.MemoryImage
+  static Future<pw.MemoryImage?> _loadAssetImage(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      return pw.MemoryImage(data.buffer.asUint8List());
+    } catch (e) {
+      print("Failed to load asset image $path: $e");
+      return null;
+    }
+  }
+
   static Future<Uint8List> generateReceiptPdf(DonationModel donation, DonorModel donor, String language) async {
     final pdf = pw.Document();
     final font = await _loadFont(language);
@@ -248,112 +185,78 @@ class ReceiptPdfGenerator {
       print("Failed to load logo image: $e");
     }
 
-    // Pre-render Gujarati text widgets to avoid PDF font shaping bugs
-    final sloganWidget = await _renderTextWidget(
-      isGuj ? "।। શ્રી ગણેશાય નમઃ ।। " : "|| Shri Ganeshaya Namah ||",
-      fontSize: 10,
-      pdfColor: PdfColors.orange900,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    // Load pre-rendered Gujarati header image assets
+    final sloganImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/slogan.png") : null;
+    final titleImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/title.png") : null;
+    final addressImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/address.png") : null;
+    final shrimanImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/shriman.png") : null;
+    final vigatImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/vigat.png") : null;
+    final praptkartaImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/praptkarta.png") : null;
+    final ankeImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/anke.png") : null;
+    final rasidNoImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/rasid_no.png") : null;
+    final taImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/ta.png") : null;
+    final gamImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/gam.png") : null;
+    final halImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/hal.png") : null;
+    final coopImg = isGuj ? await _loadAssetImage("assets/gujarati_headers/coop.png") : null;
 
-    final titleWidget = await _renderTextWidget(
-      isGuj ? "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ" : "Samast Darji Samaj Babariyawad, Mumbai",
-      fontSize: 18,
-      pdfColor: PdfColors.red900,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    // Header Widgets
+    final pw.Widget sloganWidget = sloganImg != null
+        ? pw.Image(sloganImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("|| Shri Ganeshaya Namah ||", style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900));
 
-    final addressWidget = await _renderTextWidget(
-      isGuj
-          ? "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકાર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪"
-          : "C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai - 400034",
-      fontSize: 7,
-      pdfColor: PdfColors.grey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget titleWidget = titleImg != null
+        ? pw.Image(titleImg, height: 22, fit: pw.BoxFit.contain)
+        : pw.Text("Samast Darji Samaj Babariyawad, Mumbai", style: pw.TextStyle(font: font, fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red900));
 
-    final receiptNoLabelWidget = await _renderTextWidget(
-      isGuj ? "રસીદ નંબર:" : "Receipt No:",
-      fontSize: 11,
-      pdfColor: PdfColors.black,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    final pw.Widget addressWidget = addressImg != null
+        ? pw.Image(addressImg, height: 10, fit: pw.BoxFit.contain)
+        : pw.Text("C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai - 400034", style: pw.TextStyle(font: font, fontSize: 7, color: PdfColors.grey800));
 
-    final dateLabelWidget = await _renderTextWidget(
-      isGuj ? "તા." : "Date",
-      fontSize: 11,
-      pdfColor: PdfColors.black,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    final pw.Widget receiptNoLabelWidget = rasidNoImg != null
+        ? pw.Image(rasidNoImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Receipt No:", style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold));
 
-    final donorNameLabelWidget = await _renderTextWidget(
-      isGuj ? "શ્રીમાન / શ્રીમતી:" : "Mr / Mrs:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget dateLabelWidget = taImg != null
+        ? pw.Image(taImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Date", style: pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold));
 
-    final villageLabelWidget = await _renderTextWidget(
-      isGuj ? "ગામ:" : "Native Village:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget donorNameLabelWidget = shrimanImg != null
+        ? pw.Image(shrimanImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Mr / Mrs:", style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800));
 
-    final stationLabelWidget = await _renderTextWidget(
-      isGuj ? "હાલ:" : "Nearest Station:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget villageLabelWidget = gamImg != null
+        ? pw.Image(gamImg, height: 13, fit: pw.BoxFit.contain)
+        : pw.Text("Native Village:", style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800));
 
-    final rupeesWordsLabelWidget = await _renderTextWidget(
-      isGuj ? "અંકે રૂ.:" : "Amount in Words:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget stationLabelWidget = halImg != null
+        ? pw.Image(halImg, height: 13, fit: pw.BoxFit.contain)
+        : pw.Text("Nearest Station:", style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800));
 
-    final modeLabelWidget = await _renderTextWidget(
+    final pw.Widget rupeesWordsLabelWidget = ankeImg != null
+        ? pw.Image(ankeImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Amount in Words:", style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800));
+
+    final pw.Widget modeLabelWidget = pw.Text(
       "UPI / Cash / Check:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: false,
+      style: pw.TextStyle(font: englishFont, fontSize: 10, color: PdfColors.blueGrey800),
     );
 
-    final bankLabelWidget = await _renderTextWidget(
+    final pw.Widget bankLabelWidget = pw.Text(
       isGuj ? "બેન્ક:" : "Bank Name:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
+      style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, color: PdfColors.blueGrey800),
     );
 
-    final detailLabelWidget = await _renderTextWidget(
-      isGuj ? "વિગત:" : "Purpose / Description:",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey800,
-      isGujarati: isGuj,
-    );
+    final pw.Widget detailLabelWidget = vigatImg != null
+        ? pw.Image(vigatImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Purpose / Description:", style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.blueGrey800));
 
-    final coopWidget = await _renderTextWidget(
-      isGuj ? "સહકાર બદલ આભાર" : "Thank you for cooperation",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey900,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    final pw.Widget coopWidget = coopImg != null
+        ? pw.Image(coopImg, height: 14, fit: pw.BoxFit.contain)
+        : pw.Text("Thank you for cooperation", style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900));
 
-    final receiverWidget = await _renderTextWidget(
-      isGuj ? "પ્રાપ્તકર્તા: ________________" : "Receiver: ________________",
-      fontSize: 10,
-      pdfColor: PdfColors.blueGrey900,
-      isBold: true,
-      isGujarati: isGuj,
-    );
+    final pw.Widget receiverWidget = praptkartaImg != null
+        ? pw.Row(children: [pw.Image(praptkartaImg, height: 14, fit: pw.BoxFit.contain), pw.Text(": ________________", style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold))])
+        : pw.Text("Receiver: ________________", style: pw.TextStyle(font: font, fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900));
 
     // Format date and receipt number
     final dateStr = DateFormat('dd/MM/yyyy').format(donation.date);
@@ -387,13 +290,6 @@ class ReceiptPdfGenerator {
     }
 
     final amountInWordsText = _numberToWords(donation.amount, language);
-    final amountInWordsWidget = await _renderTextWidget(
-      amountInWordsText,
-      fontSize: 10,
-      pdfColor: PdfColors.black,
-      isBold: true,
-      isGujarati: isGuj,
-    );
 
     pdf.addPage(
       pw.Page(
@@ -584,7 +480,10 @@ class ReceiptPdfGenerator {
                           border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey500, style: pw.BorderStyle.dashed)),
                         ),
                         padding: const pw.EdgeInsets.only(bottom: 2),
-                        child: amountInWordsWidget,
+                        child: pw.Text(
+                          amountInWordsText,
+                          style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 10, fontWeight: pw.FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
