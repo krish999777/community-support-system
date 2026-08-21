@@ -545,6 +545,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
                 prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
                 readOnly: _isExistingDonor,
+                validator: Validators.emailValidator,
               ),
               const SizedBox(height: 16),
 

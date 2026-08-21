@@ -54,4 +54,20 @@ class Validators {
     if (cleaned.isEmpty) return true;
     return RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(cleaned);
   }
+
+  /// Validates Email address format (returns true if empty or valid email format)
+  static bool validateEmail(String email) {
+    final cleaned = email.trim();
+    if (cleaned.isEmpty) return true;
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(cleaned);
+  }
+
+  /// Form validator for email fields
+  static String? emailValidator(String? val) {
+    if (val == null || val.trim().isEmpty) return null; // Email is optional
+    if (!validateEmail(val)) {
+      return "Enter a valid email address (e.g. example@domain.com)";
+    }
+    return null;
+  }
 }

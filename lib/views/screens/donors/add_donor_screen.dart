@@ -296,6 +296,7 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
                 label: "Email Address",
                 prefixIcon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
+                validator: Validators.emailValidator,
               ),
               const SizedBox(height: 16),
               CustomTextField(

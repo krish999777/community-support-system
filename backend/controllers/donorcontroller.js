@@ -7,6 +7,14 @@ exports.adddonor = async (req, res) => {
       return res.status(400).json({ message: 'Phone Number is required.' });
     }
 
+    // Validate optional email format
+    if (req.body.email && req.body.email.trim().length > 0) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(req.body.email.trim())) {
+        return res.status(400).json({ message: 'Invalid email address format.' });
+      }
+    }
+
     // Check missing donor phone
     const existingDonor = await Donor.findOne({ mobile });
     if (existingDonor) {
