@@ -150,16 +150,17 @@ exports.downloadReceipt = async (req, res) => {
   try {
     const rawReceiptNo = req.params.receiptNo || req.params[0] || '';
     const receiptNo = decodeURIComponent(rawReceiptNo);
+    const lang = req.query.lang || 'gujarati';
     const donor = await Donor.findOne({ 'donations.receiptNo': receiptNo });
     if (!donor) return res.status(404).json({ message: 'Receipt not found' });
 
     const receipt = donor.donations.find(d => d.receiptNo === receiptNo);
     
     // Generate PDF natively
-    const pdfBuffer = await generateReceiptPDF(donor, receipt);
+    const pdfBuffer = await generateReceiptPDF(donor, receipt, lang);
     res.contentType('application/pdf');
     const safeFilename = receiptNo.replace(/\//g, '_');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}_${lang}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -100,15 +100,16 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
       
       final dir = await getApplicationDocumentsDirectory();
       final formattedRec = ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date).replaceAll('/', '_');
-      final filePath = "${dir.path}/receipt_$formattedRec.pdf";
+      final fileName = "receipt_${formattedRec}_${lang}_${DateTime.now().millisecondsSinceEpoch}.pdf";
+      final filePath = "${dir.path}/$fileName";
       
       final file = File(filePath);
-      await file.writeAsBytes(pdfBytes);
+      await file.writeAsBytes(pdfBytes, flush: true);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Downloaded to: receipt_$formattedRec.pdf"),
+          content: Text("Downloaded: $fileName"),
           backgroundColor: AppColors.accent,
           action: SnackBarAction(
             label: "OPEN",
@@ -140,10 +141,11 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
       
       final dir = await getTemporaryDirectory();
       final formattedRec = ReceiptPdfGenerator.formatReceiptNo(donation.receiptNo, donation.date).replaceAll('/', '_');
-      final filePath = "${dir.path}/receipt_$formattedRec.pdf";
+      final fileName = "receipt_${formattedRec}_${lang}_${DateTime.now().millisecondsSinceEpoch}.pdf";
+      final filePath = "${dir.path}/$fileName";
       
       final file = File(filePath);
-      await file.writeAsBytes(pdfBytes);
+      await file.writeAsBytes(pdfBytes, flush: true);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
