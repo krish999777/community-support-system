@@ -32,8 +32,8 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
   File? _panFile;
   File? _aadhaarFile;
 
-  String _namePrefix = "Mr (Shriman)";
-  final List<String> _prefixes = ["Mr (Shriman)", "Mrs (Shrimati)", "Miss (Kumari)", "Dr"];
+  String _namePrefix = "Mr.";
+  final List<String> _prefixes = ["Mr.", "Mrs.", "Miss", "Dr."];
 
   bool get _isEditing => widget.donorToEdit != null;
 
@@ -45,7 +45,7 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
     String initialName = "";
     if (_isEditing && widget.donorToEdit != null) {
       String rawFullName = widget.donorToEdit!.fullName;
-      String matchedPrefix = "Mr (Shriman)";
+      String matchedPrefix = "Mr.";
       String nameWithoutPrefix = rawFullName;
       for (var prefix in _prefixes) {
         if (rawFullName.startsWith("$prefix ")) {

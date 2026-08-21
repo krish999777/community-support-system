@@ -40,8 +40,8 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
   File? _panFile;
   File? _aadhaarFile;
 
-  String _namePrefix = "Mr (Shriman)";
-  final List<String> _prefixes = ["Mr (Shriman)", "Mrs (Shrimati)", "Miss (Kumari)", "Dr"];
+  String _namePrefix = "Mr.";
+  final List<String> _prefixes = ["Mr.", "Mrs.", "Miss", "Dr."];
 
   String _paymentMode = "Cash";
   final List<String> _modes = ["Cash", "UPI", "Bank Transfer", "Cheque"];
@@ -111,7 +111,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
           _lookupStatusMessage = null;
           _lookupStatusColor = Colors.transparent;
           _fullNameController.clear();
-          _namePrefix = "Mr (Shriman)";
+          _namePrefix = "Mr.";
           _emailController.clear();
           _nativeVillageController.clear();
           _stationController.clear();
@@ -139,7 +139,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
 
           // Parse prefix from fullName if present
           String rawFullName = donor.fullName;
-          String matchedPrefix = "Mr (Shriman)";
+          String matchedPrefix = "Mr.";
           String nameWithoutPrefix = rawFullName;
           for (var prefix in _prefixes) {
             if (rawFullName.startsWith("$prefix ")) {

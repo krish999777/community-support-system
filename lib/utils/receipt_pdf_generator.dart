@@ -90,11 +90,73 @@ class ReceiptPdfGenerator {
     return result.trim();
   }
 
+  // Convert Gujarati number to words
+  static String _convertGujaratiNumberToWords(int number) {
+    if (number == 0) return "શૂન્ય";
+
+    final units = [
+      "", "એક", "બે", "ત્રણ", "ચાર", "પાંચ", "છ", "સાત", "આઠ", "નવ",
+      "દસ", "અગિયાર", "બાર", "તેર", "ચૌદ", "પંદર", "સોળ", "સત્તર", "અઢાર", "ઓગણીસ", "વીસ"
+    ];
+
+    final tens = [
+      "", "દસ", "વીસ", "ત્રીસ", "ચાલીસ", "પચાસ", "સાઠ", "સિત્તેર", "એંસી", "નેવુ"
+    ];
+
+    String convertLessThanHundred(int n) {
+      if (n <= 20) return units[n];
+      int t = n ~/ 10;
+      int u = n % 10;
+      if (u == 0) return tens[t];
+      return "${tens[t]} ${units[u]}";
+    }
+
+    String convertLessThanThousand(int n) {
+      if (n == 0) return "";
+      if (n < 100) return convertLessThanHundred(n);
+      int h = n ~/ 100;
+      int rem = n % 100;
+      String hundredStr = "${units[h]} સો";
+      if (rem == 0) return hundredStr;
+      return "$hundredStr ${convertLessThanHundred(rem)}";
+    }
+
+    String result = "";
+    int crores = number ~/ 10000000;
+    number %= 10000000;
+
+    int lakhs = number ~/ 100000;
+    number %= 100000;
+
+    int thousands = number ~/ 1000;
+    number %= 1000;
+
+    if (crores > 0) {
+      result += "${convertLessThanThousand(crores)} કરોડ ";
+    }
+    if (lakhs > 0) {
+      result += "${convertLessThanThousand(lakhs)} લાખ ";
+    }
+    if (thousands > 0) {
+      result += "${convertLessThanThousand(thousands)} હજાર ";
+    }
+    if (number > 0) {
+      result += convertLessThanThousand(number);
+    }
+
+    return result.trim();
+  }
+
   // Translate amount to words
   static String _numberToWords(double amount, String lang) {
     int amt = amount.round();
-    String words = _convertEnglishNumberToWords(amt);
-    return "$words Only";
+    if (lang == "gujarati") {
+      String words = _convertGujaratiNumberToWords(amt);
+      return "રૂ. $words પૂરા";
+    } else {
+      String words = _convertEnglishNumberToWords(amt);
+      return "Rupees $words Only";
+    }
   }
 
   static Future<Uint8List> generateReceiptPdf(DonationModel donation, DonorModel donor, String language) async {
@@ -117,7 +179,7 @@ class ReceiptPdfGenerator {
         "slogan": "।। શ્રી ગણેશાય નમઃ ।।",
         "title": "સમસ્ત દરજી સમાજ બાબરીયાવાડ, મુંબઈ",
         "regNo": "Regd. No. : F 29137",
-        "cO": "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪",
+        "cO": "C/o. રૂમ નં. ૮, હિરવી ચાલ, ગુણાકાર કેન્દ્રની પાછળ, સાને ગુરુજી રોડ, તારદેવ, મુંબઈ - ૪૦૦ ૦૩૪",
         "receiptNo": "રસીદ નંબર",
         "date": "તા.",
         "donorName": "શ્રીમાન / શ્રીમતી",
@@ -130,7 +192,7 @@ class ReceiptPdfGenerator {
         "detail": "વિગત",
         "coop": "સહકાર બદલ આભાર",
         "receiver": "પ્રાપ્તકર્તા",
-        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
+        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
       },
       "hindi": {
         "slogan": "।। श्री गणेशाय नमः ।।",
@@ -149,7 +211,7 @@ class ReceiptPdfGenerator {
         "detail": "विवरण",
         "coop": "सहयोग के लिए धन्यवाद",
         "receiver": "प्राप्तकर्ता",
-        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
+        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
       },
       "english": {
         "slogan": "|| Shri Ganeshaya Namah ||",
@@ -168,7 +230,7 @@ class ReceiptPdfGenerator {
         "detail": "Purpose / Description",
         "coop": "Thank you for cooperation",
         "receiver": "Receiver",
-        "disclaimer": "This is a computer generated donation receipt. Signature not required.",
+        "disclaimer": "Disclaimer: This is Computer generated donation Receipt, Signature Not Required.",
       }
     };
 
@@ -186,10 +248,15 @@ class ReceiptPdfGenerator {
       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
     );
 
-    // Clean donor full name (remove old Mr(Shriman) / Shriman / Mr. prefixes)
+    // Clean donor full name (remove old Mr(Shriman) / Shriman / Mr. / Srimati prefixes)
     String cleanDonorName = donor.fullName
-        .replaceAll(RegExp(r'^(Mr\(Shriman\)|Shriman|Srimati|Mr\.|Mrs\.|Shri)\s*', caseSensitive: false), '')
+        .replaceAll(RegExp(r'^(Mr\s*\(Shriman\)|Mrs\s*\(Shrimati\)|Miss\s*\(Kumari\)|Shriman|Srimati|Mr\.|Mrs\.|Mr|Mrs|Shri)\s*', caseSensitive: false), '')
         .trim();
+
+    String displayName = cleanDonorName;
+    if (language == "english") {
+      displayName = "Mr. $cleanDonorName";
+    }
 
     // Native Village is stored in address
     final nativeVillage = donor.address ?? "";
@@ -329,7 +396,7 @@ class ReceiptPdfGenerator {
                         ),
                         padding: const pw.EdgeInsets.only(bottom: 2),
                         child: pw.Text(
-                          cleanDonorName,
+                          displayName,
                           style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 11, fontWeight: pw.FontWeight.bold),
                         ),
                       ),
@@ -517,7 +584,7 @@ class ReceiptPdfGenerator {
                   alignment: pw.Alignment.center,
                   child: pw.Text(
                     labels["disclaimer"]!,
-                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 7, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700),
+                    style: pw.TextStyle(font: font, fontFallback: [englishFont], fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700),
                     textAlign: pw.TextAlign.center,
                   ),
                 ),

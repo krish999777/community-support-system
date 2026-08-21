@@ -84,7 +84,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Times-Roman')
        .fontSize(22)
        .fillColor('#222222')
-       .text('Samastha Darji Samaj Babariyawad, Mumbai', 0, startY, { align: 'center', width: pageWidth });
+       .text('Samast Darji Samaj Babariyawad, Mumbai', 0, startY, { align: 'center', width: pageWidth });
     
     startY += 35;
 
@@ -92,9 +92,9 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Helvetica')
        .fontSize(10)
        .fillColor('#555555')
-       .text('Office address - Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai 400034', 0, startY, { align: 'center', width: pageWidth });
+       .text('Office address - C/o Room No. 8, Hirvi Chawl, Behind Gunakar Kendra, Sane Guruji Road, Tardeo, Mumbai 400034', 0, startY, { align: 'center', width: pageWidth });
     startY += 15;
-    doc.text('Samaj PAN : AAGTS1081B', 0, startY, { align: 'center', width: pageWidth });
+    doc.text('Samaj PAN : AAGTS1081B | Regd. No. : F 29137', 0, startY, { align: 'center', width: pageWidth });
     startY += 25;
 
     // Elegant Divider Center Ornament
@@ -135,12 +135,13 @@ exports.generateReceiptPDF = (donor, donation) => {
 
     // Clean donor full name
     const rawName = donor.fullName || '-';
-    const cleanDonorName = rawName.replace(/^(Mr\(Shriman\)|Shriman|Srimati|Mr\.|Mrs\.|Shri)\s*/i, '').trim();
+    const cleanName = rawName.replace(/^(Mr\s*\(Shriman\)|Mrs\s*\(Shrimati\)|Miss\s*\(Kumari\)|Shriman|Srimati|Mr\.|Mrs\.|Mr|Mrs|Shri)\s*/i, '').trim();
+    const displayName = `Mr. ${cleanName}`;
 
     const items = [
         ['Receipt No.', donation.receiptNo || '-'],
         ['Date', formattedDate],
-        ['Mr / Mrs', cleanDonorName],
+        ['Mr / Mrs', displayName],
         ['Email', donation.email || donor.email || 'N/A'],
         ['Phone', donation.phone || donor.mobile || '-'],
         ['Address', donor.address || '-'],
@@ -194,7 +195,7 @@ exports.generateReceiptPDF = (donor, donation) => {
        .fillColor('#1F4A38') // Dark Elegant Forest Green
        .text('Amount Received', colLeft, startY);
     
-    doc.text('Rs.' + formattedAmount, colLeft, startY, { align: 'right', width: pageWidth - colLeft - 80 });
+    doc.text('Rs. ' + formattedAmount, colLeft, startY, { align: 'right', width: pageWidth - colLeft - 80 });
 
     startY += 25;
 
@@ -203,7 +204,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Helvetica-Oblique')
        .fontSize(11)
        .fillColor('#666666')
-       .text(`(${wordAmount} Only)`, colLeft, startY);
+       .text(`(Rupees ${wordAmount} Only)`, colLeft, startY);
 
     startY += 30;
 
@@ -218,7 +219,7 @@ exports.generateReceiptPDF = (donor, donation) => {
     doc.font('Helvetica-Oblique')
        .fontSize(9)
        .fillColor('#888888')
-       .text('This is a computer generated donation receipt. Signature not required.', 0, footerY, { align: 'center', width: pageWidth });
+       .text('Disclaimer: This is Computer generated donation Receipt, Signature Not Required.', 0, footerY, { align: 'center', width: pageWidth });
 
     doc.end();
   });
