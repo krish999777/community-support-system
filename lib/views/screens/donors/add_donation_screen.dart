@@ -189,9 +189,9 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Purpose Dropdown
+              // Description Dropdown
               const Text(
-                "Purpose of Donation *",
+                "Description *",
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 8),
