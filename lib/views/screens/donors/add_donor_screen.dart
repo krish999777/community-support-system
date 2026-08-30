@@ -35,27 +35,48 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
   String _namePrefix = "Mr.";
   final List<String> _prefixes = ["Mr.", "Mrs.", "Miss", "Dr."];
 
+  String _mapPrefixToInitial(String prefix) {
+    if (prefix.contains("Mr (Shriman)")) return "mr";
+    if (prefix.contains("Mrs (Shrimati)")) return "mrs";
+    if (prefix.contains("Miss (Kumari)")) return "miss";
+    if (prefix.contains("Dr")) return "dr";
+    return "mr";
+  }
+
+  String _mapInitialToPrefix(String? initial) {
+    final key = initial?.toLowerCase().replaceAll('.', '').trim();
+    if (key == 'mrs' || key == 'shrimati') return "Mrs (Shrimati)";
+    if (key == 'miss' || key == 'kumari') return "Miss (Kumari)";
+    if (key == 'dr' || key == 'doctor') return "Dr";
+    return "Mr (Shriman)";
+  }
+
   bool get _isEditing => widget.donorToEdit != null;
 
   @override
   void initState() {
     super.initState();
     
-    // Parse prefix if editing
+    // Parse prefix and clean fullName if editing
     String initialName = "";
     if (_isEditing && widget.donorToEdit != null) {
-      String rawFullName = widget.donorToEdit!.fullName;
-      String matchedPrefix = "Mr.";
-      String nameWithoutPrefix = rawFullName;
-      for (var prefix in _prefixes) {
-        if (rawFullName.startsWith("$prefix ")) {
-          matchedPrefix = prefix;
-          nameWithoutPrefix = rawFullName.substring(prefix.length + 1);
-          break;
+      if (widget.donorToEdit!.initial != null && widget.donorToEdit!.initial!.isNotEmpty) {
+        _namePrefix = _mapInitialToPrefix(widget.donorToEdit!.initial);
+        initialName = widget.donorToEdit!.fullName;
+      } else {
+        String rawFullName = widget.donorToEdit!.fullName;
+        String matchedPrefix = "Mr (Shriman)";
+        String nameWithoutPrefix = rawFullName;
+        for (var prefix in _prefixes) {
+          if (rawFullName.startsWith("$prefix ")) {
+            matchedPrefix = prefix;
+            nameWithoutPrefix = rawFullName.substring(prefix.length + 1);
+            break;
+          }
         }
+        _namePrefix = matchedPrefix;
+        initialName = nameWithoutPrefix;
       }
-      _namePrefix = matchedPrefix;
-      initialName = nameWithoutPrefix;
     }
 
     _nameController = TextEditingController(text: initialName);
@@ -160,9 +181,9 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
     final donorProvider = Provider.of<DonorProvider>(context, listen: false);
     bool success;
 
-    // Combine prefix and name
+    // Separate initial and name
     final nameInput = _nameController.text.trim();
-    final fullNameInput = "$_namePrefix $nameInput";
+    final initialKey = _mapPrefixToInitial(_namePrefix);
     
     final mobile = _mobileController.text.trim();
     final email = _emailController.text.trim();
@@ -174,7 +195,8 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
     if (_isEditing) {
       success = await donorProvider.updateDonor(
         originalMobile: widget.donorToEdit!.mobile,
-        fullName: fullNameInput,
+        initial: initialKey,
+        fullName: nameInput,
         mobile: mobile,
         email: email.isNotEmpty ? email : null,
         address: village.isNotEmpty ? village : null, // Native Village mapped to address
@@ -186,7 +208,8 @@ class _AddDonorScreenState extends State<AddDonorScreen> {
       );
     } else {
       success = await donorProvider.addDonor(
-        fullName: fullNameInput,
+        initial: initialKey,
+        fullName: nameInput,
         mobile: mobile,
         email: email.isNotEmpty ? email : null,
         address: village.isNotEmpty ? village : null, // Native Village mapped to address

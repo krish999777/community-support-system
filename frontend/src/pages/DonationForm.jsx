@@ -17,6 +17,7 @@ const EMPTY_FORM = {
   chequeNumber: '',
   accountNumber: '',
   ifsc: '',
+  receivedBy: 'Person 1',
 };
 
 export default function DonationForm() {
@@ -324,6 +325,18 @@ export default function DonationForm() {
                 </div>
               </div>
             )}
+            <div className="form-group">
+              <label className="form-label">Payment Received By *</label>
+              <select className="form-input" name="receivedBy" value={form.receivedBy} onChange={handleChange} required>
+                <option value="Person 1">Person 1</option>
+                <option value="Person 2">Person 2</option>
+                <option value="Person 3">Person 3</option>
+                <option value="Person 4">Person 4</option>
+                <option value="K. A. Vaghela">K. A. Vaghela</option>
+                <option value="Nimeshbhai Parmar">Nimeshbhai Parmar</option>
+                <option value="Rameshbhai Patel">Rameshbhai Patel</option>
+              </select>
+            </div>
 
             {error && <div className="error-box" style={{ marginTop: '20px' }}>{error}</div>}
 

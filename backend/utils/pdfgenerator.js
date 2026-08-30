@@ -214,12 +214,12 @@ exports.generateReceiptPDF = (donor, donation) => {
        .fillColor('#333333')
        .text('Receiver / પ્રાપ્તકર્તા: ____________________', pageWidth - 320, startY, { align: 'right', width: 240 });
 
-    // Fine Print Footer (Dynamic Y to prevent overlap)
     const footerY = Math.max(startY + 40, pageHeight - 65);
+    const genDateStr = new Date().toLocaleDateString('en-GB');
     doc.font('Helvetica-Oblique')
        .fontSize(9)
        .fillColor('#888888')
-       .text('Disclaimer: This is Computer generated donation Receipt, Signature Not Required.', 0, footerY, { align: 'center', width: pageWidth });
+       .text(`Disclaimer: This is Computer generated donation Receipt, Signature Not Required. | Generated on: ${genDateStr}`, 0, footerY, { align: 'center', width: pageWidth });
 
     doc.end();
   });

@@ -83,6 +83,7 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
 
     bool success = await donorProvider.addDonation(
       donorId: widget.donor.id ?? '',
+      initial: widget.donor.initial,
       fullName: widget.donor.fullName,
       amount: amt,
       mode: _paymentMode,
@@ -92,7 +93,8 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
       transactionId: (_paymentMode == "UPI" || _paymentMode == "Bank Transfer") ? _txnIdController.text.trim() : null,
       chequeNumber: (_paymentMode == "Cheque") ? _chequeNoController.text.trim() : null,
       accountNumber: (_paymentMode != "Cash") ? _bankNameController.text.trim() : null, // Bank name in accountNumber
-      ifsc: (_paymentMode != "Cash") ? _receivedBy : null, // Payment received by in ifsc
+      ifsc: _receivedBy, // Payment received by
+      receivedBy: _receivedBy,
       date: _transactionDate,
     );
 
@@ -127,7 +129,7 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     
     // Prepare dynamic received-by list containing standard names + current logged in user
-    final List<String> receivers = ["K. A. Vaghela", "Nimeshbhai Parmar", "Rameshbhai Patel"];
+    final List<String> receivers = ["Person 1", "Person 2", "Person 3", "Person 4", "K. A. Vaghela", "Nimeshbhai Parmar", "Rameshbhai Patel"];
     final currentUsername = authProvider.currentUser?.username;
     if (currentUsername != null && !receivers.contains(currentUsername)) {
       receivers.add(currentUsername);
@@ -167,7 +169,7 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
                     const Text("DONOR", style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                     const SizedBox(height: 4),
                     Text(
-                      widget.donor.fullName,
+                      widget.donor.displayNameWithInitial,
                       style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Text(
@@ -333,33 +335,33 @@ class _AddDonationScreenState extends State<AddDonationScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Received By Dropdown
-                const Text("Payment Received By *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    value: _receivedBy,
-                    dropdownColor: AppColors.surface,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                    items: receivers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _receivedBy = val;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
+
+              // Received By Dropdown (Always visible for all payment modes)
+              const Text("Payment Received By *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _receivedBy,
+                  dropdownColor: AppColors.surface,
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  items: receivers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _receivedBy = val;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Contact information for receipt notification
               const Text("Notification Details", style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),

@@ -12,9 +12,11 @@ const donationSchema = new mongoose.Schema({
   chequeNumber: String,
   accountNumber: String,
   ifsc: String,
+  receivedBy: String,
 });
 
 const donorSchema = new mongoose.Schema({
+  initial: String,
   fullName: String,
   mobile: String,
   email: String,

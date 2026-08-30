@@ -70,11 +70,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/fonts/NotoSansGujarati-Regular.ttf
-    - assets/fonts/NotoSansDevanagari-Regular.ttf
-    - assets/fonts/NotoSans-Regular.ttf
-    - assets/logo.jpg
+    - assets/fonts/
+    - assets/images/
     - assets/gujarati_headers/
+    - assets/logo.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

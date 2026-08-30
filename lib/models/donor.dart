@@ -11,6 +11,7 @@ class DonationModel {
   final String? chequeNumber;
   final String? accountNumber;
   final String? ifsc;
+  final String? receivedBy;
 
   DonationModel({
     this.id,
@@ -25,6 +26,7 @@ class DonationModel {
     this.chequeNumber,
     this.accountNumber,
     this.ifsc,
+    this.receivedBy,
   });
 
   factory DonationModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class DonationModel {
       chequeNumber: json['chequeNumber'],
       accountNumber: json['accountNumber'],
       ifsc: json['ifsc'],
+      receivedBy: json['receivedBy'] ?? json['ifsc'],
     );
   }
 
@@ -57,12 +60,14 @@ class DonationModel {
       'chequeNumber': chequeNumber,
       'accountNumber': accountNumber,
       'ifsc': ifsc,
+      'receivedBy': receivedBy,
     };
   }
 }
 
 class DonorModel {
   final String? id;
+  final String? initial;
   final String fullName;
   final String mobile;
   final String? email;
@@ -76,6 +81,7 @@ class DonorModel {
 
   DonorModel({
     this.id,
+    this.initial,
     required this.fullName,
     required this.mobile,
     this.email,
@@ -87,6 +93,22 @@ class DonorModel {
     this.aadhaarFileBase64,
     required this.donations,
   });
+
+  String get displayNameWithInitial {
+    if (initial == null || initial!.trim().isEmpty) return fullName;
+    String prefix = initial!.trim();
+    final lower = prefix.toLowerCase().replaceAll('.', '');
+    if (lower == 'mr' || lower == 'shriman') {
+      prefix = 'Mr.';
+    } else if (lower == 'mrs' || lower == 'shrimati') {
+      prefix = 'Mrs.';
+    } else if (lower == 'miss' || lower == 'kumari') {
+      prefix = 'Miss';
+    } else if (lower == 'dr' || lower == 'doctor') {
+      prefix = 'Dr.';
+    }
+    return "$prefix $fullName".trim();
+  }
 
   factory DonorModel.fromJson(Map<String, dynamic> json) {
     var donationList = json['donations'] as List? ?? [];
@@ -108,6 +130,7 @@ class DonorModel {
 
     return DonorModel(
       id: json['_id'],
+      initial: json['initial'],
       fullName: json['fullName'] ?? '',
       mobile: json['mobile'] ?? '',
       email: json['email'],
@@ -123,6 +146,7 @@ class DonorModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'initial': initial,
       'fullName': fullName,
       'mobile': mobile,
       'email': email,

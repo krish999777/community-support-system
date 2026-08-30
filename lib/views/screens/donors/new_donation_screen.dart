@@ -43,6 +43,22 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
   String _namePrefix = "Mr.";
   final List<String> _prefixes = ["Mr.", "Mrs.", "Miss", "Dr."];
 
+  String _mapPrefixToInitial(String prefix) {
+    if (prefix.contains("Mr (Shriman)")) return "mr";
+    if (prefix.contains("Mrs (Shrimati)")) return "mrs";
+    if (prefix.contains("Miss (Kumari)")) return "miss";
+    if (prefix.contains("Dr")) return "dr";
+    return "mr";
+  }
+
+  String _mapInitialToPrefix(String? initial) {
+    final key = initial?.toLowerCase().replaceAll('.', '').trim();
+    if (key == 'mrs' || key == 'shrimati') return "Mrs (Shrimati)";
+    if (key == 'miss' || key == 'kumari') return "Miss (Kumari)";
+    if (key == 'dr' || key == 'doctor') return "Dr";
+    return "Mr (Shriman)";
+  }
+
   String _paymentMode = "Cash";
   final List<String> _modes = ["Cash", "UPI", "Bank Transfer", "Cheque"];
 
@@ -137,19 +153,24 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
           _isExistingDonor = true;
           _existingDonorId = donor.id;
 
-          // Parse prefix from fullName if present
-          String rawFullName = donor.fullName;
-          String matchedPrefix = "Mr.";
-          String nameWithoutPrefix = rawFullName;
-          for (var prefix in _prefixes) {
-            if (rawFullName.startsWith("$prefix ")) {
-              matchedPrefix = prefix;
-              nameWithoutPrefix = rawFullName.substring(prefix.length + 1);
-              break;
+          if (donor.initial != null && donor.initial!.isNotEmpty) {
+            _namePrefix = _mapInitialToPrefix(donor.initial);
+            _fullNameController.text = donor.fullName;
+          } else {
+            // Parse prefix from fullName if present in legacy records
+            String rawFullName = donor.fullName;
+            String matchedPrefix = "Mr (Shriman)";
+            String nameWithoutPrefix = rawFullName;
+            for (var prefix in _prefixes) {
+              if (rawFullName.startsWith("$prefix ")) {
+                matchedPrefix = prefix;
+                nameWithoutPrefix = rawFullName.substring(prefix.length + 1);
+                break;
+              }
             }
+            _namePrefix = matchedPrefix;
+            _fullNameController.text = nameWithoutPrefix;
           }
-          _namePrefix = matchedPrefix;
-          _fullNameController.text = nameWithoutPrefix;
 
           _emailController.text = donor.email ?? '';
           _nativeVillageController.text = donor.address ?? ''; // Native village stored in address
@@ -157,7 +178,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
           _panController.text = donor.pan ?? '';
           _aadhaarController.text = donor.aadhaar ?? '';
 
-          _lookupStatusMessage = "Existing donor found: ${donor.fullName}";
+          _lookupStatusMessage = "Existing donor found: ${donor.displayNameWithInitial}";
           _lookupStatusColor = Colors.green;
         });
       } else {
@@ -267,9 +288,9 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
     final donorProvider = Provider.of<DonorProvider>(context, listen: false);
     final mobile = _mobileController.text.trim();
     
-    // Combine name prefix and full name
+    // Separate name prefix and full name
     final nameInput = _fullNameController.text.trim();
-    final fullNameInput = "$_namePrefix $nameInput";
+    final initialKey = _mapPrefixToInitial(_namePrefix);
     
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     final email = _emailController.text.trim();
@@ -285,7 +306,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
 
     try {
       String? donorId = _existingDonorId;
-      String fullName = fullNameInput;
+      String fullName = nameInput;
 
       if (donorId == null || donorId.isEmpty) {
         // Fallback check: Search if donor already exists
@@ -296,7 +317,8 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
         } else {
           // Register donor if not found (with optional PAN/Aadhaar)
           bool donorCreated = await donorProvider.addDonor(
-            fullName: fullNameInput,
+            initial: initialKey,
+            fullName: nameInput,
             mobile: mobile,
             email: email.isNotEmpty ? email : null,
             address: village.isNotEmpty ? village : null, // Native Village in address field
@@ -328,6 +350,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
       // Record donation
       bool donationSuccess = await donorProvider.addDonation(
         donorId: donorId,
+        initial: initialKey,
         fullName: fullName,
         amount: amount,
         mode: _paymentMode,
@@ -337,7 +360,8 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
         transactionId: (_paymentMode == "UPI" || _paymentMode == "Bank Transfer") ? _txnIdController.text.trim() : null,
         chequeNumber: (_paymentMode == "Cheque") ? _chequeNoController.text.trim() : null,
         accountNumber: (_paymentMode != "Cash") ? _bankNameController.text.trim() : null, // Bank name in accountNumber
-        ifsc: (_paymentMode != "Cash") ? _receivedBy : null, // Payment received by in ifsc
+        ifsc: _receivedBy, // Payment received by in ifsc
+        receivedBy: _receivedBy,
         date: _transactionDate,
       );
 
@@ -387,7 +411,7 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     
     // Prepare dynamic received-by list containing standard names + current logged in user
-    final List<String> receivers = ["K. A. Vaghela", "Nimeshbhai Parmar", "Rameshbhai Patel"];
+    final List<String> receivers = ["Person 1", "Person 2", "Person 3", "Person 4", "K. A. Vaghela", "Nimeshbhai Parmar", "Rameshbhai Patel"];
     final currentUsername = authProvider.currentUser?.username;
     if (currentUsername != null && !receivers.contains(currentUsername)) {
       receivers.add(currentUsername);
@@ -762,33 +786,33 @@ class _NewDonationScreenState extends State<NewDonationScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Received By Dropdown
-                const Text("Payment Received By *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    value: _receivedBy,
-                    dropdownColor: AppColors.surface,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                    items: receivers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _receivedBy = val;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
               ],
+
+              // Received By Dropdown (Always visible for all payment modes)
+              const Text("Payment Received By *", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _receivedBy,
+                  dropdownColor: AppColors.surface,
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  items: receivers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _receivedBy = val;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
 
               const SizedBox(height: 32),
 

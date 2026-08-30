@@ -49,6 +49,9 @@ exports.searchdonor = async (req, res) => {
     const { query } = req.params;
 
     const donor = await Donor.findOne({ mobile: query }).select('-panFile -aadhaarFile');
+    if (donor && donor.donations && donor.donations.length > 0) {
+      donor.donations.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
 
     res.json(donor);
   } catch (err) {
@@ -63,6 +66,11 @@ exports.getDonorProfile = async (req, res) => {
     if (!donor) return res.status(404).json({ message: 'Donor not found' });
 
     const donorObj = donor.toObject();
+
+    // Sort donation history latest first (descending by date)
+    if (donorObj.donations && donorObj.donations.length > 0) {
+      donorObj.donations.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
 
     // Convert BSON binary data to Base64 for safe HTML transfer
     if (donorObj.panFile && donorObj.panFile.data) {
@@ -86,6 +94,11 @@ exports.getDonorProfile = async (req, res) => {
 exports.getAllDonors = async (req, res) => {
   try {
     const donors = await Donor.find({}).select('-panFile -aadhaarFile').sort({ createdAt: -1 });
+    donors.forEach(donor => {
+      if (donor.donations && donor.donations.length > 0) {
+        donor.donations.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+    });
     res.json(donors);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -95,7 +108,7 @@ exports.getAllDonors = async (req, res) => {
 exports.updateDonor = async (req, res) => {
   try {
     const { mobile: currentMobile } = req.params;
-    const { fullName, email, mobile, address, nearestRailwayStation, pan, aadhaar } = req.body;
+    const { initial, fullName, email, mobile, address, nearestRailwayStation, pan, aadhaar } = req.body;
 
     let donor = await Donor.findOne({ mobile: currentMobile });
     if (!donor) return res.status(404).json({ message: 'Donor not found' });
@@ -107,6 +120,7 @@ exports.updateDonor = async (req, res) => {
       donor.mobile = mobile;
     }
 
+    if (initial !== undefined) donor.initial = initial;
     if (fullName) donor.fullName = fullName;
     if (email !== undefined) donor.email = email;
     if (address) donor.address = address;

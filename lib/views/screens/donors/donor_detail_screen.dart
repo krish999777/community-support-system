@@ -255,7 +255,7 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              donor.fullName,
+                              donor.displayNameWithInitial,
                               style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                               textAlign: TextAlign.center,
                             ),
@@ -432,7 +432,10 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
   }
 
   Widget _buildHistoryTab(DonorModel donor) {
-    if (donor.donations.isEmpty) {
+    final sortedDonations = List<DonationModel>.from(donor.donations)
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    if (sortedDonations.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -447,9 +450,9 @@ class _DonorDetailScreenState extends State<DonorDetailScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 32.0),
-      itemCount: donor.donations.length,
+      itemCount: sortedDonations.length,
       itemBuilder: (context, index) {
-        final donation = donor.donations[index];
+        final donation = sortedDonations[index];
         final formattedDate = DateFormat('MMM dd, yyyy').format(donation.date);
         
         return Card(

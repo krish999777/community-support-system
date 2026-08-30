@@ -100,6 +100,7 @@ class DonorProvider with ChangeNotifier {
   }
 
   Future<bool> addDonor({
+    String? initial,
     required String fullName,
     required String mobile,
     String? email,
@@ -116,6 +117,7 @@ class DonorProvider with ChangeNotifier {
 
     try {
       Map<String, dynamic> dataMap = {
+        if (initial != null && initial.isNotEmpty) 'initial': initial,
         'fullName': fullName,
         'mobile': mobile,
         'email': email ?? '',
@@ -164,6 +166,7 @@ class DonorProvider with ChangeNotifier {
 
   Future<bool> updateDonor({
     required String originalMobile,
+    String? initial,
     required String fullName,
     required String mobile,
     String? email,
@@ -180,6 +183,7 @@ class DonorProvider with ChangeNotifier {
 
     try {
       Map<String, dynamic> dataMap = {
+        if (initial != null) 'initial': initial,
         'fullName': fullName,
         'mobile': mobile,
         'email': email ?? '',
@@ -252,6 +256,7 @@ class DonorProvider with ChangeNotifier {
 
   Future<bool> addDonation({
     required String donorId,
+    String? initial,
     required String fullName,
     required double amount,
     required String mode,
@@ -262,6 +267,7 @@ class DonorProvider with ChangeNotifier {
     String? chequeNumber,
     String? accountNumber,
     String? ifsc,
+    String? receivedBy,
     DateTime? date,
   }) async {
     _isLoading = true;
@@ -273,6 +279,7 @@ class DonorProvider with ChangeNotifier {
         ApiRoutes.donate,
         data: {
           'donorId': donorId,
+          if (initial != null && initial.isNotEmpty) 'initial': initial,
           'fullName': fullName,
           'amount': amount,
           'mode': mode,
@@ -283,6 +290,7 @@ class DonorProvider with ChangeNotifier {
           'chequeNumber': chequeNumber,
           'accountNumber': accountNumber,
           'ifsc': ifsc,
+          'receivedBy': receivedBy ?? ifsc,
           'date': date?.toIso8601String(),
         },
       );

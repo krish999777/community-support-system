@@ -13,7 +13,7 @@ const sendMail = require('../utils/mailservice');
  */
 exports.addDonation = async (req, res) => {
   try {
-    const { fullName, email, phone, amount, mode, purpose, date, transactionId, chequeNumber, accountNumber, ifsc } = req.body;
+    const { initial, fullName, email, phone, amount, mode, purpose, date, transactionId, chequeNumber, accountNumber, ifsc, receivedBy } = req.body;
 
     if (!fullName || !phone || !amount || !mode) {
       return res.status(400).json({ message: 'fullName, phone, amount, and mode are required' });
@@ -26,6 +26,7 @@ exports.addDonation = async (req, res) => {
       // Inline Registration logic: Create donor if not found but details are provided
       const { address, nearestRailwayStation, pan, aadhaar } = req.body;
       donor = new Donor({
+        initial: initial || '',
         fullName,
         mobile: phone,
         email: email || '',
@@ -36,6 +37,7 @@ exports.addDonation = async (req, res) => {
       });
       await donor.save();
     } else {
+      if (initial && !donor.initial) donor.initial = initial;
       // Opt: update email if missing
       if (email && !donor.email) donor.email = email;
     }
@@ -76,7 +78,8 @@ exports.addDonation = async (req, res) => {
       transactionId: transactionId || '',
       chequeNumber: chequeNumber || '',
       accountNumber: accountNumber || '',
-      ifsc: ifsc || ''
+      ifsc: ifsc || '',
+      receivedBy: receivedBy || ifsc || '',
     };
 
     donor.donations.push(donationData);
@@ -116,7 +119,10 @@ exports.getDonationHistory = async (req, res) => {
     const { donorId } = req.params;
     const donor = await Donor.findById(donorId);
     if (!donor) return res.status(404).json({ message: 'Donor not found' });
-    res.json(donor.donations);
+    
+    // Sort donation history latest first (descending by date)
+    const sortedDonations = (donor.donations || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+    res.json(sortedDonations);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

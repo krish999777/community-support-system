@@ -133,7 +133,7 @@ class _DonorListScreenState extends State<DonorListScreen> {
                                 ),
                               ),
                               title: Text(
-                                donor.fullName,
+                                donor.displayNameWithInitial,
                                 style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                               subtitle: Padding(
